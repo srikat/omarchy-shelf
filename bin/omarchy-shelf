@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# omarchy-shelf — command line front end for the Shelf plugin.
+#
+# The plugin runs inside the long-lived omarchy-shell process; this script only
+# talks to it over the shell's own IPC. The shelf registers one IPC target
+# ("shelf") and it exists for as long as the plugin is enabled.
+
+set -euo pipefail
+
+IPC_TARGET="shelf"
+
+die() {
+  printf 'omarchy-shelf: %s\n' "$1" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'EOF'
+Usage: omarchy-shelf <command> [arguments]
+
+Commands:
+  add [--quiet] <path>...   Put files or folders on the shelf (opens it)
+  remove <path>...          Take specific paths off the shelf
+  list                      Print what is on the shelf
+  count                     Print how many items are on the shelf
+  clear                     Take everything off the shelf
+  show | toggle | hide      Slide the shelf in or out
+  pin | unpin | pin-toggle  Keep it open and reserve its column, or stop
+  hover [on|off]            Hover the right screen edge to reveal (default on)
+  help
+
+Examples:
+  omarchy-shelf add ~/Downloads/report.pdf ~/Projects
+  omarchy-shelf remove ~/Downloads/report.pdf
+  omarchy-shelf list | wl-copy
+  omarchy-shelf hover off
+EOF
+}
+
+call() {
+  command -v omarchy-shell >/dev/null 2>&1 || die "omarchy-shell is not on PATH"
+  omarchy-shell "$IPC_TARGET" "$@"
+}
+
+# Paths go over as a JSON object. A bare JSON array is read as an argument
+# *list* by the IPC layer and splatted across the method's parameters, so the
+# object wrapper is what keeps names with spaces or commas in one piece.
+paths_payload() {
+  for p in "$@"; do realpath -m -- "$p"; done | python3 -c '
+import json, sys
+print(json.dumps({"paths": [line.rstrip("\n") for line in sys.stdin if line.strip()]}))'
+}
+
+add() {
+  local method="add"
+  if [[ ${1-} == "--quiet" || ${1-} == "--no-show" ]]; then
+    method="addQuiet"
+    shift
+  fi
+  [[ $# -gt 0 ]] || die "add needs at least one path"
+  call "$method" "$(paths_payload "$@")"
+}
+
+# -m so a path that has since been deleted or unmounted can still be named:
+# its row is exactly the one you would want to take off the shelf.
+remove() {
+  [[ $# -gt 0 ]] || die "remove needs at least one path"
+  call remove "$(paths_payload "$@")"
+}
+
+case "${1-help}" in
+  add)         shift; add "$@" ;;
+  remove|rm)   shift; remove "$@" ;;
+  list)        call list ;;
+  count)       call count ;;
+  clear)       call clear ;;
+  show)        call show ;;
+  hide)        call hide ;;
+  toggle)      call toggle ;;
+  pin)         call pin ;;
+  unpin)       call unpin ;;
+  pin-toggle)  call togglePin ;;
+  hover)       shift; call hover "${1-toggle}" ;;
+  help|-h|--help) usage ;;
+  *)           die "unknown command: $1 (try 'omarchy-shelf help')" ;;
+esac

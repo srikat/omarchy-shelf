@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "sridhar.side-shelf",
+  "name": "Side Shelf",
+  "version": "1.0.0",
+  "author": "sridhar",
+  "license": "MIT",
+  "description": "A sliding right-edge shelf. Throw files and folders at the right edge of the screen to park them, click to open, drag them back out later. Pin it to keep it open.",
+  "kinds": [
+    "service"
+  ],
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}
