@@ -43,6 +43,17 @@ Rectangle {
 
   readonly property string uri: Model.urlFromPath(path)
 
+  // What the footer should say while one of this row's buttons is hovered.
+  // "Remove" is a trash can next to a file name, and that reads as "delete the
+  // file" unless something says otherwise the moment before you click.
+  readonly property string actionHint: {
+    if (removeButton.hovered)
+      return "Take it off the shelf — the file itself stays put"
+    if (copyButton.hovered)
+      return "Copy as a file, to paste into anything"
+    return ""
+  }
+
   signal openRequested()
   signal copyPathRequested()
   signal copyFileRequested()
@@ -76,8 +87,14 @@ Rectangle {
     "text/uri-list": Model.uriList([row.path]),
     "text/plain": row.path
   })
-  Drag.imageSource: row.dragImage !== "" ? row.dragImage : (row.isImage ? row.uri : "")
-  Drag.imageSourceSize: Qt.size(Style.space(44), Style.space(44))
+  // Only ever the grabbed thumbnail, never the file url: pointing this at the
+  // file would drag a full-size image across the screen, and `imageSourceSize`
+  // cannot bound it back down — Qt ignores that property on a grabToImage url
+  // and says so in the log every time. `grabToImage` is already told the size,
+  // so there is nothing left to bound. The grab runs on hover and the drag
+  // needs a 10 px move, so it has landed by then; if it somehow has not, the
+  // drag goes out without a picture rather than with a 4K one.
+  Drag.imageSource: row.dragImage
 
   function beginDrag() {
     row.dragStarted()
@@ -212,6 +229,7 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 90 } }
 
     ShelfIconButton {
+      id: copyButton
       fontFamily: row.fontFamily
       foreground: row.foreground
       accent: row.accent
@@ -221,6 +239,7 @@ Rectangle {
     }
 
     ShelfIconButton {
+      id: removeButton
       fontFamily: row.fontFamily
       foreground: row.foreground
       accent: row.accent

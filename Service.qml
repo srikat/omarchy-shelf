@@ -64,6 +64,8 @@ Scope {
   // scrollbars and window edges live, so it is switchable and remembered.
   property bool hoverReveal: true
   property string flash: ""
+  // Set by whichever row has a button under the pointer; the footer reads it.
+  property string rowHint: ""
 
   readonly property string homeDir: Quickshell.env("HOME") || ""
   readonly property string statePath: Model.stateFile(homeDir, Quickshell.env("XDG_STATE_HOME"))
@@ -83,6 +85,7 @@ Scope {
       return
     revealTimer.stop()
     hideTimer.stop()
+    root.rowHint = ""
     root.opened = false
   }
 
@@ -141,10 +144,20 @@ Scope {
     root.save()
   }
 
+  // The row's delete button. Says what it did, because a trash can next to a
+  // file name is worth contradicting out loud.
+  function removeFromShelf(path) {
+    root.removePath(path)
+    // The row is gone, so its hover hint will never clear itself.
+    root.rowHint = ""
+    root.say("Off the shelf — " + Model.baseName(path) + " is untouched")
+  }
+
   function clearAll() {
     root.items = []
+    root.rowHint = ""
     root.save()
-    root.say("Shelf cleared")
+    root.say("Shelf cleared — no files were deleted")
   }
 
   function allPaths() {
@@ -609,7 +622,8 @@ Scope {
 
           onOpenRequested: root.openPath(path)
           onCopyFileRequested: root.copyAsFiles([path])
-          onRemoveRequested: root.removePath(path)
+          onRemoveRequested: root.removeFromShelf(path)
+          onActionHintChanged: root.rowHint = actionHint
           onDragStarted: root.dragOutActive = true
           onDragFinished: {
             root.dragOutActive = false
@@ -644,6 +658,18 @@ Scope {
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
         }
+
+        // The shelf holds paths, not copies. Worth saying once, up front,
+        // where it is read before anything is at stake.
+        Text {
+          width: parent.width
+          horizontalAlignment: Text.AlignHCenter
+          wrapMode: Text.WordWrap
+          text: "The shelf keeps a path, never a copy. Taking something off it never deletes the file."
+          color: Util.alpha(root.foreground, 0.35)
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+        }
       }
 
       // ------------------------------------------------------------ footer
@@ -663,10 +689,12 @@ Scope {
           elide: Text.ElideRight
           text: {
             if (root.flash !== "") return root.flash
-            if (clearButton.hovered) return "Clear the shelf"
+            if (clearButton.hovered)
+              return "Empty the shelf — every file stays where it is"
             if (pinButton.hovered)
               return root.pinned ? "Unpin — let it slide away again"
                                  : "Pin — keep it open and make room for it"
+            if (root.rowHint !== "") return root.rowHint
             return root.count > 0 ? "Click opens · drag takes it out" : ""
           }
           color: root.flash !== "" ? root.accent : root.muted
