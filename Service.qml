@@ -47,7 +47,12 @@ Scope {
   readonly property color foreground: Color.menu.text
   readonly property color borderColor: Color.menu.border
   readonly property color accent: Color.accent
-  readonly property color muted: Color.muted
+  // NOT Color.muted. That token is decorative — in Tokyo Night it is #414868
+  // on a #1a1b26 card, a contrast ratio of 1.9:1, which is invisible at
+  // caption size. Secondary text here is the theme foreground held back with
+  // alpha instead, which lands near 4.6:1 on the same card and follows any
+  // theme's own foreground rather than its idea of "muted".
+  readonly property color muted: Util.alpha(Color.foreground, 0.72)
   readonly property color rowFill: Util.alpha(Color.foreground, 0.05)
   readonly property color rowFillHover: Util.alpha(Color.foreground, 0.11)
 
@@ -666,7 +671,7 @@ Scope {
           horizontalAlignment: Text.AlignHCenter
           wrapMode: Text.WordWrap
           text: "The shelf keeps a path, never a copy. Taking something off it never deletes the file."
-          color: Util.alpha(root.foreground, 0.35)
+          color: root.muted
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
         }
