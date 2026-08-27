@@ -242,7 +242,6 @@ Rectangle {
       muted: row.muted
       icon: "\u{F018F}"          // nf-md-content_copy
       tooltip: "Copy as file"
-      tooltipEdge: row.compact ? "bottom" : "left"
       onClicked: row.copyFileRequested()
     }
 
@@ -257,7 +256,6 @@ Rectangle {
       // Not "Delete". The glyph is a trash can and the file is not going
       // anywhere; the word is the only thing that says so at a glance.
       tooltip: "Remove"
-      tooltipEdge: row.compact ? "bottom" : "left"
       onClicked: row.removeRequested()
     }
   }

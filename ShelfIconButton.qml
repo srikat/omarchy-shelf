@@ -20,6 +20,11 @@ Rectangle {
   property string tooltip: ""
   // "left" | "right" | "top" | "bottom"
   property string tooltipEdge: "left"
+  // Which end of the tooltip lines up with the button, for the top/bottom
+  // edges. "center" reads best in open space; "right" is what keeps a tooltip
+  // on a button already up against the right end of a strip from hanging off
+  // the card.
+  property string tooltipAlign: "center"
   property string fontFamily: Style.font.family
   property color foreground: Color.foreground
   property color accent: Color.accent
@@ -66,19 +71,29 @@ Rectangle {
   Rectangle {
     id: tip
 
-    readonly property bool vertical: button.tooltipEdge === "top" || button.tooltipEdge === "bottom"
+    // Positioned with x/y, not anchors. `tooltipEdge` is usually a binding
+    // that flips after the button is built, and an anchor whose conditional
+    // binding re-evaluates to `undefined` does not reliably clear -- the
+    // stale verticalCenter wins and the tooltip lands on top of the button it
+    // was meant to sit above, silently and with nothing in the log.
+    readonly property int offset: Style.spacing.xs
 
     visible: hover.hovered && button.tooltip !== ""
     // Above the neighbouring button, whichever way it opens.
     z: 100
 
-    anchors.horizontalCenter: tip.vertical ? parent.horizontalCenter : undefined
-    anchors.verticalCenter: tip.vertical ? undefined : parent.verticalCenter
-    anchors.bottom: button.tooltipEdge === "top" ? parent.top : undefined
-    anchors.top: button.tooltipEdge === "bottom" ? parent.bottom : undefined
-    anchors.right: button.tooltipEdge === "left" ? parent.left : undefined
-    anchors.left: button.tooltipEdge === "right" ? parent.right : undefined
-    anchors.margins: Style.spacing.xs
+    x: {
+      if (button.tooltipEdge === "left") return -width - tip.offset
+      if (button.tooltipEdge === "right") return button.width + tip.offset
+      if (button.tooltipAlign === "right") return button.width - width
+      if (button.tooltipAlign === "left") return 0
+      return (button.width - width) / 2
+    }
+    y: {
+      if (button.tooltipEdge === "top") return -height - tip.offset
+      if (button.tooltipEdge === "bottom") return button.height + tip.offset
+      return (button.height - height) / 2
+    }
 
     width: tipText.implicitWidth + Style.spacing.lg * 2
     height: tipText.implicitHeight + Style.spacing.xs * 2

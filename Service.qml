@@ -651,6 +651,7 @@ Scope {
           // on a trash can is what decides whether that lands.
           tooltip: "Remove all"
           tooltipEdge: root.vertical ? "left" : "top"
+          tooltipAlign: "right"
           onClicked: root.clearAll()
         }
 
@@ -664,6 +665,7 @@ Scope {
           icon: root.pinned ? "\u{F0403}" : "\u{F0404}"   // nf-md-pin / pin_off
           tooltip: root.pinned ? "Unpin" : "Pin"
           tooltipEdge: root.vertical ? "left" : "top"
+          tooltipAlign: "right"
           onClicked: root.togglePin()
         }
       }
@@ -811,8 +813,12 @@ Scope {
                          : actions.x - width - Style.spacing.lg
         y: root.vertical ? card.height - card.pad - height
                          : (card.height - height) / 2
+        // Wide enough for the longest thing it says -- "Empty the shelf --
+        // every file stays where it is" -- rather than eliding the half that
+        // carries the reassurance. The list gives up the space; on a strip
+        // there is far more of it than the chips need.
         width: root.vertical ? card.width - card.pad * 2 - Style.spacing.sm
-                             : Style.space(230)
+                             : Style.space(320)
         horizontalAlignment: root.vertical ? Text.AlignLeft : Text.AlignRight
         elide: Text.ElideRight
 
