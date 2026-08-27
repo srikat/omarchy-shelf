@@ -35,6 +35,15 @@ taking something off the shelf only forgets the path.
 tiled windows shrink beside it instead of sitting underneath. Unpinned, it
 slides away as soon as the pointer leaves. The pin survives a restart.
 
+**How it opens.** By default, resting the pointer on its edge for a moment
+brings it out. `omarchy-shelf reveal click` turns that off: the shelf then
+stays shut until you click the little handle on the edge — the hairline pill
+that marks where it lives. The handle is clickable in either mode, and grows
+more visible when it is the only way in.
+
+Clicking opens; it still slides away when the pointer leaves. Pin it if it
+should stay.
+
 **Where it lives.** `omarchy-shelf position left|right|top|bottom` moves it, and
 the choice is remembered.
 
@@ -86,7 +95,8 @@ omarchy-shelf list
 omarchy-shelf pin
 omarchy-shelf position bottom             # left | right | top | bottom
 omarchy-shelf position                    # prints the current edge
-omarchy-shelf hover off                   # stop the edge opening on hover
+omarchy-shelf reveal click                # only open on clicking the handle
+omarchy-shelf reveal hover                # back to opening on a resting pointer
 omarchy-shelf clear
 ```
 
@@ -102,11 +112,16 @@ already had a file to write.
 | --- | --- | --- |
 | `edge` | `right` | `omarchy-shelf position left\|right\|top\|bottom` |
 | `pinned` | off | the pin button, `SUPER + ALT + P`, `omarchy-shelf pin` |
-| `hoverReveal` | on | `omarchy-shelf hover off` |
+| `reveal` | `hover` | `omarchy-shelf reveal hover\|click` |
 
-Turning `hoverReveal` off leaves the drag-at-the-edge gesture and
-`omarchy-shelf show` working; it only stops a resting pointer from opening the
-shelf. Worth doing if you keep hitting it while reaching for a scrollbar.
+`reveal: click` only stops a *resting pointer* from opening the shelf. Clicking
+the handle, dragging a file at the edge, and `omarchy-shelf show` all still
+work. Worth switching if you keep opening it by accident on the way to a
+scrollbar or a window edge.
+
+`reveal` was a `hoverReveal` boolean before it grew a second mode; a state file
+written under the old name is still read, and `omarchy-shelf hover on|off`
+still works.
 
 State lives in `~/.local/state/omarchy/shelf.json`.
 

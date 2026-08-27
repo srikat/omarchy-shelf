@@ -177,6 +177,14 @@ function merge(existing, incoming) {
 }
 
 var EDGES = ["right", "left", "top", "bottom"]
+var REVEALS = ["hover", "click"]
+
+// How the shelf comes out on its own: resting the pointer on its edge, or
+// only a click on the handle.
+function normalizeReveal(value) {
+    var text = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
+    return REVEALS.indexOf(text) === -1 ? "hover" : text
+}
 
 // Anything unrecognized falls back to the right edge rather than leaving the
 // panel anchored to nothing.
@@ -185,14 +193,14 @@ function normalizeEdge(value) {
     return EDGES.indexOf(text) === -1 ? "right" : text
 }
 
-function serialize(items, pinned, hoverReveal, edge) {
+function serialize(items, pinned, reveal, edge) {
     var plain = items.map(function (item) {
         return { path: item.path, addedAt: item.addedAt }
     })
     return JSON.stringify({
         version: STATE_VERSION,
         pinned: pinned === true,
-        hoverReveal: hoverReveal !== false,
+        reveal: normalizeReveal(reveal),
         edge: normalizeEdge(edge),
         items: plain
     }, null, 2) + "\n"
@@ -200,7 +208,7 @@ function serialize(items, pinned, hoverReveal, edge) {
 
 // Tolerates an empty file, a bare array, and unknown extra fields.
 function deserialize(text) {
-    var empty = { items: [], pinned: false, hoverReveal: true, edge: "right" }
+    var empty = { items: [], pinned: false, reveal: "hover", edge: "right" }
     if (!text || !String(text).trim())
         return empty
     var parsed
@@ -223,9 +231,12 @@ function deserialize(text) {
     return {
         items: items,
         pinned: !!(parsed && parsed.pinned === true),
-        // Absent means on: the hot edge is the shelf's whole reason to exist,
-        // and a state file written before the setting existed should keep it.
-        hoverReveal: !(parsed && parsed.hoverReveal === false),
+        // `reveal` replaced a `hoverReveal` boolean; a state file written
+        // before the rename still says what the user chose, so read it rather
+        // than resetting them to the default.
+        reveal: (parsed && parsed.reveal !== undefined)
+            ? normalizeReveal(parsed.reveal)
+            : ((parsed && parsed.hoverReveal === false) ? "click" : "hover"),
         edge: normalizeEdge(parsed && parsed.edge)
     }
 }

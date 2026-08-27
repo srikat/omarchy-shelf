@@ -83,9 +83,14 @@ Scope {
   // started itself, and the auto-hide has to stay out of the way until the
   // drop lands somewhere.
   property bool dragOutActive: false
-  // Hover-to-reveal is the fast path, but the right screen edge is also where
-  // scrollbars and window edges live, so it is switchable and remembered.
-  property bool hoverReveal: true
+  // How the shelf comes out on its own. "hover" rests the pointer on its edge;
+  // "click" waits for the handle to be clicked, for anyone who would rather
+  // the screen edge stayed inert -- it is also where scrollbars and window
+  // edges live. Either way a drag arriving at the edge still opens it, and
+  // the handle is always clickable.
+  property string reveal: "hover"
+  readonly property bool revealsOnHover: root.reveal === "hover"
+
   property string flash: ""
   // Set by whichever row has a button under the pointer; the footer reads it.
   property string rowHint: ""
@@ -146,12 +151,14 @@ Scope {
     return next
   }
 
-  function setHoverReveal(value) {
-    root.hoverReveal = !!value
-    if (!root.hoverReveal)
+  function setReveal(value) {
+    root.reveal = Model.normalizeReveal(value)
+    if (!root.revealsOnHover)
       revealTimer.stop()
     root.save()
-    root.say(root.hoverReveal ? "Hover to reveal: on" : "Hover to reveal: off")
+    root.say(root.revealsOnHover ? "Opens when you rest on the edge"
+                                 : "Opens when you click the handle")
+    return root.reveal
   }
 
   // Auto-hide, with every reason to stay open checked in one place.
@@ -235,14 +242,14 @@ Scope {
   function save() {
     if (!root.statePath)
       return
-    stateFile.setText(Model.serialize(root.items, root.pinned, root.hoverReveal, root.edge))
+    stateFile.setText(Model.serialize(root.items, root.pinned, root.reveal, root.edge))
   }
 
   function restore(text) {
     var state = Model.deserialize(text)
     root.items = state.items
     root.pinned = state.pinned
-    root.hoverReveal = state.hoverReveal
+    root.reveal = state.reveal
     root.edge = state.edge
     if (root.pinned)
       root.opened = true
@@ -335,13 +342,23 @@ Scope {
       return root.setEdge(value)
     }
 
+    // "hover" | "click"; empty reports the current mode, anything else
+    // toggles between the two.
+    function reveal(mode: string): string {
+      var text = String(mode).trim().toLowerCase()
+      if (text === "") return root.reveal
+      if (text === "hover" || text === "click") return root.setReveal(text)
+      return root.setReveal(root.revealsOnHover ? "click" : "hover")
+    }
+
+    // The spelling this setting had before it grew a second mode.
     // "on" | "off" | anything else toggles.
     function hover(mode: string): string {
       var text = String(mode).trim().toLowerCase()
-      if (text === "on" || text === "true") root.setHoverReveal(true)
-      else if (text === "off" || text === "false") root.setHoverReveal(false)
-      else root.setHoverReveal(!root.hoverReveal)
-      return root.hoverReveal ? "on" : "off"
+      if (text === "on" || text === "true") root.setReveal("hover")
+      else if (text === "off" || text === "false") root.setReveal("click")
+      else root.setReveal(root.revealsOnHover ? "click" : "hover")
+      return root.revealsOnHover ? "on" : "off"
     }
 
     // Accepts {"paths": [...]} or newline separated paths. A bare JSON array
@@ -452,7 +469,7 @@ Scope {
       onHoveredChanged: {
         if (hovered) {
           hideTimer.stop()
-          if (!root.opened && root.hoverReveal)
+          if (!root.opened && root.revealsOnHover)
             revealTimer.restart()
         } else {
           revealTimer.stop()
@@ -514,10 +531,28 @@ Scope {
                        : (parent.width - width) / 2
       y: root.vertical ? (parent.height - height) / 2
                        : (root.atFarSide ? parent.height - height : 0)
-      opacity: root.opened ? 0 : (surfaceHover.hovered ? 1 : (root.count > 0 ? 0.75 : 0.35))
+      // In click mode the handle is the only way in, so it stops being a
+      // hairline hint and starts being a control.
+      opacity: root.opened ? 0
+                           : (surfaceHover.hovered ? 1
+                              : (root.revealsOnHover ? (root.count > 0 ? 0.75 : 0.35) : 0.9))
       visible: opacity > 0
 
       Behavior on opacity { NumberAnimation { duration: 140 } }
+
+      // Clicking the handle opens the shelf in either reveal mode, and is the
+      // only way in once hover is switched off. It does not latch: the handle
+      // is hidden while the shelf is out, so there would be nothing left to
+      // click to put it away. Closing stays what it was -- move off it, or
+      // pin it from the header if it should stay.
+      HoverHandler {
+        cursorShape: Qt.PointingHandCursor
+      }
+
+      TapHandler {
+        acceptedButtons: Qt.LeftButton
+        onTapped: root.toggle()
+      }
 
       // A wallpaper can be any colour, and a bare accent hairline disappears
       // into half of them. The backing is what makes the pill legible without
