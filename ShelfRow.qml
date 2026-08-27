@@ -235,6 +235,7 @@ Rectangle {
       accent: row.accent
       muted: row.muted
       icon: "\u{F018F}"          // nf-md-content_copy
+      tooltip: "Copy as file"
       onClicked: row.copyFileRequested()
     }
 
@@ -246,6 +247,9 @@ Rectangle {
       muted: row.muted
       danger: true
       icon: "\u{F01B4}"          // nf-md-delete
+      // Not "Delete". The glyph is a trash can and the file is not going
+      // anywhere; the word is the only thing that says so at a glance.
+      tooltip: "Remove"
       onClicked: row.removeRequested()
     }
   }

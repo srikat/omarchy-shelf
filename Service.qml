@@ -563,6 +563,9 @@ Scope {
             danger: true
             visible: root.count > 0
             icon: "\u{F05E9}"          // nf-md-delete_sweep
+            // "Remove", never "delete" -- the shelf holds paths, and the word
+            // on a trash can is what decides whether that lands.
+            tooltip: "Remove all"
             onClicked: root.clearAll()
           }
 
@@ -574,6 +577,7 @@ Scope {
             muted: root.muted
             active: root.pinned
             icon: root.pinned ? "\u{F0403}" : "\u{F0404}"   // nf-md-pin / pin_off
+            tooltip: root.pinned ? "Unpin" : "Pin"
             onClicked: root.togglePin()
           }
         }

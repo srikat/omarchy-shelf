@@ -198,10 +198,12 @@ delete button on a row, middle-clicking a row, "clear the shelf" in the header,
 `omarchy-shelf remove`, `omarchy-shelf clear` — only forgets the path. The file
 stays exactly where it was.
 
-The panel says so too, rather than making you come here for it: the empty state
-states it up front, hovering either destructive button spells out what it will
-do before you click ("Take it off the shelf — the file itself stays put"), and
-both confirm afterwards.
+The panel says so too, rather than making you come here for it. The buttons are
+labelled **Remove** and **Remove all**, never "delete" — the glyph is a trash
+can, and the word next to it is the only thing that says otherwise at a glance.
+Hovering either one also spells it out in the footer ("Take it off the shelf —
+the file itself stays put"), the empty state states it up front, and the flash
+afterwards confirms it.
 
 Dragging a row out is copy-only for the same reason: the shelf offers the
 receiving application `Qt.CopyAction` and nothing else, so even an app that
