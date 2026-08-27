@@ -91,6 +91,11 @@ Scope {
   property string reveal: "hover"
   readonly property bool revealsOnHover: root.reveal === "hover"
 
+  // Whether the handle is painted. The hot edge keeps working either way --
+  // this hides the marker, not the target -- so a click, a hover or a drag at
+  // the edge still opens the shelf with nothing drawn there.
+  property bool showHandle: true
+
   property string flash: ""
   // Set by whichever row has a button under the pointer; the footer reads it.
   property string rowHint: ""
@@ -159,6 +164,17 @@ Scope {
     root.say(root.revealsOnHover ? "Opens when you rest on the edge"
                                  : "Opens when you click the handle")
     return root.reveal
+  }
+
+  function setShowHandle(value) {
+    root.showHandle = !!value
+    root.save()
+    if (root.showHandle)
+      root.say("Handle shown")
+    else
+      root.say(root.revealsOnHover ? "Handle hidden — the edge still opens on hover"
+                                   : "Handle hidden — the edge still opens on a click")
+    return root.showHandle
   }
 
   // Auto-hide, with every reason to stay open checked in one place.
@@ -242,7 +258,7 @@ Scope {
   function save() {
     if (!root.statePath)
       return
-    stateFile.setText(Model.serialize(root.items, root.pinned, root.reveal, root.edge))
+    stateFile.setText(Model.serialize(root.items, root.pinned, root.reveal, root.edge, root.showHandle))
   }
 
   function restore(text) {
@@ -250,6 +266,7 @@ Scope {
     root.items = state.items
     root.pinned = state.pinned
     root.reveal = state.reveal
+    root.showHandle = state.handle
     root.edge = state.edge
     if (root.pinned)
       root.opened = true
@@ -349,6 +366,16 @@ Scope {
       if (text === "") return root.reveal
       if (text === "hover" || text === "click") return root.setReveal(text)
       return root.setReveal(root.revealsOnHover ? "click" : "hover")
+    }
+
+    // "on" | "off"; empty reports, anything else toggles.
+    function handle(mode: string): string {
+      var text = String(mode).trim().toLowerCase()
+      if (text === "") return root.showHandle ? "on" : "off"
+      if (text === "on" || text === "true") root.setShowHandle(true)
+      else if (text === "off" || text === "false") root.setShowHandle(false)
+      else root.setShowHandle(!root.showHandle)
+      return root.showHandle ? "on" : "off"
     }
 
     // The spelling this setting had before it grew a second mode.
@@ -531,14 +558,20 @@ Scope {
                        : (parent.width - width) / 2
       y: root.vertical ? (parent.height - height) / 2
                        : (root.atFarSide ? parent.height - height : 0)
-      // In click mode the handle is the only way in, so it stops being a
-      // hairline hint and starts being a control.
-      opacity: root.opened ? 0
-                           : (surfaceHover.hovered ? 1
-                              : (root.revealsOnHover ? (root.count > 0 ? 0.75 : 0.35) : 0.9))
+      // The Item is the hit target and only tracks whether the shelf is out.
+      // How much of it gets *painted* is a separate question -- `showHandle`
+      // takes the marker away without taking the target with it, so the edge
+      // still answers a click, a hover or a drag with nothing drawn on it.
+      opacity: root.opened ? 0 : 1
       visible: opacity > 0
 
       Behavior on opacity { NumberAnimation { duration: 140 } }
+
+      // In click mode the handle is the only way in, so it stops being a
+      // hairline hint and starts being a control.
+      readonly property real paint: !root.showHandle ? 0
+        : (surfaceHover.hovered ? 1
+           : (root.revealsOnHover ? (root.count > 0 ? 0.75 : 0.35) : 0.9))
 
       // Clicking the handle opens the shelf in either reveal mode, and is the
       // only way in once hover is switched off. It does not latch: the handle
@@ -566,6 +599,9 @@ Scope {
         anchors.bottomMargin: (!root.vertical && root.atFarSide) ? -parent.height : 0
         radius: Math.min(width, height) / 2
         color: Util.alpha(root.background, 0.55)
+        opacity: handle.paint
+
+        Behavior on opacity { NumberAnimation { duration: 140 } }
       }
 
       Rectangle {
@@ -579,7 +615,9 @@ Scope {
         y: root.vertical ? (parent.height - height) / 2
                          : (root.atFarSide ? parent.height - height - Style.space(2) : Style.space(2))
         color: root.count > 0 ? root.accent : root.foreground
+        opacity: handle.paint
 
+        Behavior on opacity { NumberAnimation { duration: 140 } }
         Behavior on width { NumberAnimation { duration: 140 } }
         Behavior on height { NumberAnimation { duration: 140 } }
       }

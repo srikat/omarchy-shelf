@@ -193,7 +193,7 @@ function normalizeEdge(value) {
     return EDGES.indexOf(text) === -1 ? "right" : text
 }
 
-function serialize(items, pinned, reveal, edge) {
+function serialize(items, pinned, reveal, edge, handle) {
     var plain = items.map(function (item) {
         return { path: item.path, addedAt: item.addedAt }
     })
@@ -201,6 +201,7 @@ function serialize(items, pinned, reveal, edge) {
         version: STATE_VERSION,
         pinned: pinned === true,
         reveal: normalizeReveal(reveal),
+        handle: handle !== false,
         edge: normalizeEdge(edge),
         items: plain
     }, null, 2) + "\n"
@@ -208,7 +209,7 @@ function serialize(items, pinned, reveal, edge) {
 
 // Tolerates an empty file, a bare array, and unknown extra fields.
 function deserialize(text) {
-    var empty = { items: [], pinned: false, reveal: "hover", edge: "right" }
+    var empty = { items: [], pinned: false, reveal: "hover", edge: "right", handle: true }
     if (!text || !String(text).trim())
         return empty
     var parsed
@@ -237,7 +238,8 @@ function deserialize(text) {
         reveal: (parsed && parsed.reveal !== undefined)
             ? normalizeReveal(parsed.reveal)
             : ((parsed && parsed.hoverReveal === false) ? "click" : "hover"),
-        edge: normalizeEdge(parsed && parsed.edge)
+        edge: normalizeEdge(parsed && parsed.edge),
+        handle: !(parsed && parsed.handle === false)
     }
 }
 

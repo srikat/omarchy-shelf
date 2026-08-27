@@ -29,6 +29,8 @@ Commands:
   position [EDGE]           Move the shelf: left, right, top, bottom
   reveal [hover|click]      Open on resting at the edge, or only on clicking
                             the handle (default hover)
+  handle [on|off]           Show or hide the marker on the edge. Hiding it
+                            leaves the edge working, just unmarked
   help
 
 Examples:
@@ -37,6 +39,7 @@ Examples:
   omarchy-shelf list | wl-copy
   omarchy-shelf position bottom
   omarchy-shelf reveal click
+  omarchy-shelf handle off
 EOF
 }
 
@@ -85,6 +88,7 @@ case "${1-help}" in
   pin-toggle)  call togglePin ;;
   position|pos) shift; call position "${1-}" ;;
   reveal)      shift; call reveal "${1-}" ;;
+  handle)      shift; call handle "${1-}" ;;
   hover)       shift; call hover "${1-toggle}" ;;   # the old spelling
   help|-h|--help) usage ;;
   *)           die "unknown command: $1 (try 'omarchy-shelf help')" ;;

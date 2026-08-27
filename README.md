@@ -44,6 +44,13 @@ more visible when it is the only way in.
 Clicking opens; it still slides away when the pointer leaves. Pin it if it
 should stay.
 
+**The handle.** That hairline pill on the edge is the only thing the shelf
+draws while it is shut. `omarchy-shelf handle off` takes it away and leaves a
+bare screen edge that still opens on a hover, a click or a drag — it hides the
+marker, not the target. Turning it off *and* setting `reveal click` leaves an
+invisible click target, which works but is only worth doing if you already know
+where it is.
+
 **Where it lives.** `omarchy-shelf position left|right|top|bottom` moves it, and
 the choice is remembered.
 
@@ -97,6 +104,7 @@ omarchy-shelf position bottom             # left | right | top | bottom
 omarchy-shelf position                    # prints the current edge
 omarchy-shelf reveal click                # only open on clicking the handle
 omarchy-shelf reveal hover                # back to opening on a resting pointer
+omarchy-shelf handle off                  # hide the pill on the edge
 omarchy-shelf clear
 ```
 
@@ -104,7 +112,7 @@ Underneath it is shell IPC: `omarchy-shell shelf <method>`.
 
 ## Settings
 
-All three are remembered in the state file rather than in `shell.json` —
+All four are remembered in the state file rather than in `shell.json` —
 the shell does not inject plugin settings into `service` plugins, and the shelf
 already had a file to write.
 
@@ -113,6 +121,7 @@ already had a file to write.
 | `edge` | `right` | `omarchy-shelf position left\|right\|top\|bottom` |
 | `pinned` | off | the pin button, `SUPER + ALT + P`, `omarchy-shelf pin` |
 | `reveal` | `hover` | `omarchy-shelf reveal hover\|click` |
+| `handle` | on | `omarchy-shelf handle on\|off` |
 
 `reveal: click` only stops a *resting pointer* from opening the shelf. Clicking
 the handle, dragging a file at the edge, and `omarchy-shelf show` all still
