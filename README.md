@@ -191,6 +191,22 @@ and a popup card under it. Side Shelf is the same idea against the screen edge
 instead, with a pin. Running both is fine — they keep separate lists — but one
 of them is probably redundant.
 
+## Nothing here deletes your files
+
+The shelf stores paths, not copies. Every way of taking something off it — the
+delete button on a row, middle-clicking a row, "clear the shelf" in the header,
+`omarchy-shelf remove`, `omarchy-shelf clear` — only forgets the path. The file
+stays exactly where it was.
+
+Dragging a row out is copy-only for the same reason: the shelf offers the
+receiving application `Qt.CopyAction` and nothing else, so even an app that
+would happily move a file is not given the option. Nothing in this plugin ever
+writes to, moves, or unlinks a file you put on it.
+
+The one thing it will not do is notice on your behalf. If you delete or move a
+file elsewhere, its row is struck through and dimmed rather than removed, so an
+unmounted drive does not quietly empty your shelf.
+
 ## License
 
 MIT. The path helpers, the Nerd Font glyph table and every hard-won fact about
