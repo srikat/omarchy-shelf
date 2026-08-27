@@ -26,13 +26,15 @@ Commands:
   clear                     Take everything off the shelf
   show | toggle | hide      Slide the shelf in or out
   pin | unpin | pin-toggle  Keep it open and reserve its column, or stop
-  hover [on|off]            Hover the right screen edge to reveal (default on)
+  position [EDGE]           Move the shelf: left, right, top, bottom
+  hover [on|off]            Hover the shelf's screen edge to reveal (default on)
   help
 
 Examples:
   omarchy-shelf add ~/Downloads/report.pdf ~/Projects
   omarchy-shelf remove ~/Downloads/report.pdf
   omarchy-shelf list | wl-copy
+  omarchy-shelf position bottom
   omarchy-shelf hover off
 EOF
 }
@@ -80,6 +82,7 @@ case "${1-help}" in
   pin)         call pin ;;
   unpin)       call unpin ;;
   pin-toggle)  call togglePin ;;
+  position|pos) shift; call position "${1-}" ;;
   hover)       shift; call hover "${1-toggle}" ;;
   help|-h|--help) usage ;;
   *)           die "unknown command: $1 (try 'omarchy-shelf help')" ;;

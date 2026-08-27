@@ -176,7 +176,16 @@ function merge(existing, incoming) {
     return { items: fresh.concat(existing), added: fresh.length }
 }
 
-function serialize(items, pinned, hoverReveal) {
+var EDGES = ["right", "left", "top", "bottom"]
+
+// Anything unrecognized falls back to the right edge rather than leaving the
+// panel anchored to nothing.
+function normalizeEdge(value) {
+    var text = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
+    return EDGES.indexOf(text) === -1 ? "right" : text
+}
+
+function serialize(items, pinned, hoverReveal, edge) {
     var plain = items.map(function (item) {
         return { path: item.path, addedAt: item.addedAt }
     })
@@ -184,13 +193,14 @@ function serialize(items, pinned, hoverReveal) {
         version: STATE_VERSION,
         pinned: pinned === true,
         hoverReveal: hoverReveal !== false,
+        edge: normalizeEdge(edge),
         items: plain
     }, null, 2) + "\n"
 }
 
 // Tolerates an empty file, a bare array, and unknown extra fields.
 function deserialize(text) {
-    var empty = { items: [], pinned: false, hoverReveal: true }
+    var empty = { items: [], pinned: false, hoverReveal: true, edge: "right" }
     if (!text || !String(text).trim())
         return empty
     var parsed
@@ -215,7 +225,8 @@ function deserialize(text) {
         pinned: !!(parsed && parsed.pinned === true),
         // Absent means on: the hot edge is the shelf's whole reason to exist,
         // and a state file written before the setting existed should keep it.
-        hoverReveal: !(parsed && parsed.hoverReveal === false)
+        hoverReveal: !(parsed && parsed.hoverReveal === false),
+        edge: normalizeEdge(parsed && parsed.edge)
     }
 }
 

@@ -28,11 +28,29 @@ Scope {
   property var manifest: null
 
   // ------------------------------------------------------------- geometry
+  //
+  // Which screen edge the shelf lives on: "right" (default), "left", "top" or
+  // "bottom". Left and right are tall and narrow and hold a vertical list;
+  // top and bottom are wide and short and hold a horizontal one. The two are
+  // the same list with a different delegate width and one subtitle hidden —
+  // a shelf you cannot read the names on is not worth having.
+  property string edge: "right"
+  readonly property bool vertical: root.edge === "left" || root.edge === "right"
+  // True when the shelf hangs off the far side, so "closed" means translating
+  // toward higher coordinates rather than toward zero.
+  readonly property bool atFarSide: root.edge === "right" || root.edge === "bottom"
+
   readonly property int panelWidth: Style.space(330)
+  readonly property int panelHeight: Style.space(92)
+  // What the shelf costs the screen: its width on a side edge, its height on
+  // a top or bottom one. This is also the exclusive zone when pinned.
+  readonly property int thickness: root.vertical ? root.panelWidth : root.panelHeight
+
   // The hot edge. Thin enough that it costs nothing to leave armed, wide
   // enough to hit by throwing the cursor at the screen edge without aiming.
   readonly property int edgeWidth: Style.space(8)
   readonly property int rowHeight: Style.space(58)
+  readonly property int chipWidth: Style.space(190)
   readonly property int gap: Style.gapsOut
   readonly property int cornerRadius: Style.cornerRadius
   readonly property string fontFamily: Style.font.family
@@ -110,6 +128,23 @@ Scope {
   }
 
   function togglePin() { root.setPinned(!root.pinned) }
+
+  function setEdge(value) {
+    var next = Model.normalizeEdge(value)
+    if (next === root.edge)
+      return next
+    // Closing first would animate the card out toward its old edge while the
+    // window is already re-anchored to the new one. Snapping shut is the
+    // honest transition here.
+    var wasOpen = root.opened
+    root.opened = false
+    root.edge = next
+    root.save()
+    if (wasOpen || root.pinned)
+      Qt.callLater(function() { root.opened = true })
+    root.say("Shelf moved to the " + next)
+    return next
+  }
 
   function setHoverReveal(value) {
     root.hoverReveal = !!value
@@ -200,7 +235,7 @@ Scope {
   function save() {
     if (!root.statePath)
       return
-    stateFile.setText(Model.serialize(root.items, root.pinned, root.hoverReveal))
+    stateFile.setText(Model.serialize(root.items, root.pinned, root.hoverReveal, root.edge))
   }
 
   function restore(text) {
@@ -208,6 +243,7 @@ Scope {
     root.items = state.items
     root.pinned = state.pinned
     root.hoverReveal = state.hoverReveal
+    root.edge = state.edge
     if (root.pinned)
       root.opened = true
     root.classify()
@@ -290,6 +326,14 @@ Scope {
     function pin(): string { root.setPinned(true); return "pinned" }
     function unpin(): string { root.setPinned(false); return "unpinned" }
     function togglePin(): string { root.togglePin(); return root.pinned ? "pinned" : "unpinned" }
+
+    // "left" | "right" | "top" | "bottom"; anything else is rejected and the
+    // current edge is reported back unchanged.
+    function position(value: string): string {
+      if (String(value).trim() === "")
+        return root.edge
+      return root.setEdge(value)
+    }
 
     // "on" | "off" | anything else toggles.
     function hover(mode: string): string {
@@ -377,22 +421,30 @@ Scope {
     // keyboard focus from whatever you were typing in would be a bug.
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-    anchors { top: true; bottom: true; right: true }
-    implicitWidth: root.panelWidth
+    // Anchored to three sides: its own edge plus the two it runs along. The
+    // fourth is what leaves room for `implicit` size to mean thickness.
+    anchors {
+      top: root.edge !== "bottom"
+      bottom: root.edge !== "top"
+      left: root.edge !== "right"
+      right: root.edge !== "left"
+    }
+    implicitWidth: root.vertical ? root.panelWidth : 0
+    implicitHeight: root.vertical ? 0 : root.panelHeight
 
     // Unpinned the shelf floats over whatever is underneath; pinned it takes
-    // its column out of the tiling area.
+    // its strip out of the tiling area.
     exclusionMode: root.pinned ? ExclusionMode.Normal : ExclusionMode.Ignore
-    exclusiveZone: root.pinned ? root.panelWidth : 0
+    exclusiveZone: root.pinned ? root.thickness : 0
 
     // The input region, and the reason drag-in works at all. Closed, it is the
     // hot edge and nothing else, so a press anywhere else on screen still
     // belongs to the window underneath.
     mask: Region {
-      x: root.opened ? 0 : window.width - root.edgeWidth
-      y: 0
-      width: root.opened ? window.width : root.edgeWidth
-      height: window.height
+      x: (root.opened || !root.vertical || !root.atFarSide) ? 0 : window.width - root.edgeWidth
+      y: (root.opened || root.vertical || !root.atFarSide) ? 0 : window.height - root.edgeWidth
+      width: (root.opened || !root.vertical) ? window.width : root.edgeWidth
+      height: (root.opened || root.vertical) ? window.height : root.edgeWidth
     }
 
     HoverHandler {
@@ -450,12 +502,18 @@ Scope {
     // Visible only while the shelf is closed, and only just: a hairline pill
     // that says there is something here without being one more thing on
     // screen. It fills in once the shelf has anything on it.
+    //
+    // Positioned with x/y rather than anchors: anchoring two opposite sides
+    // and a size at once is over-constrained, and every one of these has to
+    // flip between the two axes.
     Item {
       id: handle
-      width: Style.space(9)
-      height: Style.space(78)
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
+      width: root.vertical ? Style.space(9) : Style.space(78)
+      height: root.vertical ? Style.space(78) : Style.space(9)
+      x: root.vertical ? (root.atFarSide ? parent.width - width : 0)
+                       : (parent.width - width) / 2
+      y: root.vertical ? (parent.height - height) / 2
+                       : (root.atFarSide ? parent.height - height : 0)
       opacity: root.opened ? 0 : (surfaceHover.hovered ? 1 : (root.count > 0 ? 0.75 : 0.35))
       visible: opacity > 0
 
@@ -463,34 +521,42 @@ Scope {
 
       // A wallpaper can be any colour, and a bare accent hairline disappears
       // into half of them. The backing is what makes the pill legible without
-      // making it loud.
+      // making it loud. It runs off the screen edge so only its inner curve
+      // shows, like a tab.
       Rectangle {
         anchors.fill: parent
-        anchors.rightMargin: -parent.width
-        radius: width / 2
+        anchors.leftMargin: (root.vertical && !root.atFarSide) ? -parent.width : 0
+        anchors.rightMargin: (root.vertical && root.atFarSide) ? -parent.width : 0
+        anchors.topMargin: (!root.vertical && !root.atFarSide) ? -parent.height : 0
+        anchors.bottomMargin: (!root.vertical && root.atFarSide) ? -parent.height : 0
+        radius: Math.min(width, height) / 2
         color: Util.alpha(root.background, 0.55)
       }
 
       Rectangle {
-        width: surfaceHover.hovered ? Style.space(4) : Style.space(3)
-        height: parent.height - Style.space(8)
-        radius: width / 2
-        anchors.right: parent.right
-        anchors.rightMargin: Style.space(2)
-        anchors.verticalCenter: parent.verticalCenter
+        id: pill
+        readonly property int thin: surfaceHover.hovered ? Style.space(4) : Style.space(3)
+        width: root.vertical ? thin : parent.width - Style.space(8)
+        height: root.vertical ? parent.height - Style.space(8) : thin
+        radius: Math.min(width, height) / 2
+        x: root.vertical ? (root.atFarSide ? parent.width - width - Style.space(2) : Style.space(2))
+                         : (parent.width - width) / 2
+        y: root.vertical ? (parent.height - height) / 2
+                         : (root.atFarSide ? parent.height - height - Style.space(2) : Style.space(2))
         color: root.count > 0 ? root.accent : root.foreground
 
         Behavior on width { NumberAnimation { duration: 140 } }
+        Behavior on height { NumberAnimation { duration: 140 } }
       }
     }
 
-    // Drag hovering the closed edge: a full-height accent seam, so the throw
-    // has something to land on that you can see mid-drag.
+    // Drag hovering the closed edge: an accent seam the length of that edge,
+    // so the throw has something to land on that you can see mid-drag.
     Rectangle {
-      anchors.right: parent.right
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      width: Style.space(4)
+      width: root.vertical ? Style.space(4) : parent.width
+      height: root.vertical ? parent.height : Style.space(4)
+      x: (root.vertical && root.atFarSide) ? parent.width - width : 0
+      y: (!root.vertical && root.atFarSide) ? parent.height - height : 0
       color: root.accent
       opacity: dropArea.containsDrag && !root.opened ? 0.9 : 0
       Behavior on opacity { NumberAnimation { duration: 120 } }
@@ -501,12 +567,19 @@ Scope {
     Rectangle {
       id: card
 
-      y: root.gap
-      height: window.height - root.gap * 2
-      width: root.panelWidth - root.gap
-      // Closed, the card sits one full window width to the right — entirely
+      width: root.vertical ? root.thickness - root.gap : window.width - root.gap * 2
+      height: root.vertical ? window.height - root.gap * 2 : root.thickness - root.gap
+
+      // Closed, the card sits one full thickness beyond its edge — entirely
       // off screen. Open, it lands flush against the gap.
-      x: root.opened ? (window.width - width - root.gap) : window.width
+      x: root.vertical
+         ? (root.opened ? (root.atFarSide ? window.width - width - root.gap : root.gap)
+                        : (root.atFarSide ? window.width : -width))
+         : root.gap
+      y: root.vertical
+         ? root.gap
+         : (root.opened ? (root.atFarSide ? window.height - height - root.gap : root.gap)
+                        : (root.atFarSide ? window.height : -height))
       opacity: root.opened ? 1 : 0
       visible: opacity > 0
 
@@ -516,17 +589,24 @@ Scope {
       border.color: dropArea.containsDrag ? root.accent : root.borderColor
 
       Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+      Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
       Behavior on opacity { NumberAnimation { duration: 180 } }
       Behavior on border.color { ColorAnimation { duration: 120 } }
 
+      readonly property int pad: Style.spacing.lg
+
       // ------------------------------------------------------------ header
+      //
+      // Vertical: a full-width strip across the top, buttons at its right.
+      // Horizontal: a name at the left end of the strip, buttons at the far
+      // right, and the list running between them.
       Item {
         id: header
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: Style.spacing.lg
-        height: Style.space(34)
+        x: card.pad
+        y: card.pad
+        width: root.vertical ? card.width - card.pad * 2
+                             : title.implicitWidth + count.implicitWidth + Style.spacing.md * 2
+        height: root.vertical ? Style.space(34) : card.height - card.pad * 2
 
         Text {
           id: title
@@ -540,6 +620,7 @@ Scope {
         }
 
         Text {
+          id: count
           anchors.left: title.right
           anchors.leftMargin: Style.spacing.md
           anchors.baseline: title.baseline
@@ -548,47 +629,51 @@ Scope {
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
         }
+      }
 
-        Row {
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.xxs
+      Row {
+        id: actions
+        spacing: Style.spacing.xxs
+        x: card.width - width - card.pad
+        y: root.vertical ? card.pad + (Style.space(34) - height) / 2
+                         : (card.height - height) / 2
 
-          ShelfIconButton {
-            id: clearButton
-            fontFamily: root.fontFamily
-            foreground: root.foreground
-            accent: root.accent
-            muted: root.muted
-            danger: true
-            visible: root.count > 0
-            icon: "\u{F05E9}"          // nf-md-delete_sweep
-            // "Remove", never "delete" -- the shelf holds paths, and the word
-            // on a trash can is what decides whether that lands.
-            tooltip: "Remove all"
-            onClicked: root.clearAll()
-          }
+        ShelfIconButton {
+          id: clearButton
+          fontFamily: root.fontFamily
+          foreground: root.foreground
+          accent: root.accent
+          muted: root.muted
+          danger: true
+          visible: root.count > 0
+          icon: "\u{F05E9}"          // nf-md-delete_sweep
+          // "Remove", never "delete" -- the shelf holds paths, and the word
+          // on a trash can is what decides whether that lands.
+          tooltip: "Remove all"
+          tooltipEdge: root.vertical ? "left" : "top"
+          onClicked: root.clearAll()
+        }
 
-          ShelfIconButton {
-            id: pinButton
-            fontFamily: root.fontFamily
-            foreground: root.foreground
-            accent: root.accent
-            muted: root.muted
-            active: root.pinned
-            icon: root.pinned ? "\u{F0403}" : "\u{F0404}"   // nf-md-pin / pin_off
-            tooltip: root.pinned ? "Unpin" : "Pin"
-            onClicked: root.togglePin()
-          }
+        ShelfIconButton {
+          id: pinButton
+          fontFamily: root.fontFamily
+          foreground: root.foreground
+          accent: root.accent
+          muted: root.muted
+          active: root.pinned
+          icon: root.pinned ? "\u{F0403}" : "\u{F0404}"   // nf-md-pin / pin_off
+          tooltip: root.pinned ? "Unpin" : "Pin"
+          tooltipEdge: root.vertical ? "left" : "top"
+          onClicked: root.togglePin()
         }
       }
 
       Rectangle {
         id: headerRule
-        anchors.top: header.bottom
-        anchors.topMargin: Style.spacing.md
-        anchors.left: parent.left
-        anchors.right: parent.right
+        visible: root.vertical
+        x: 0
+        y: header.y + header.height + Style.spacing.md
+        width: card.width
         height: 1
         color: Util.alpha(root.foreground, 0.12)
       }
@@ -596,12 +681,15 @@ Scope {
       // -------------------------------------------------------------- list
       ListView {
         id: list
-        anchors.top: headerRule.bottom
-        anchors.bottom: footer.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.margins: Style.spacing.lg
-        anchors.bottomMargin: Style.spacing.sm
+        orientation: root.vertical ? ListView.Vertical : ListView.Horizontal
+
+        x: root.vertical ? card.pad : header.x + header.width + Style.spacing.lg
+        y: root.vertical ? headerRule.y + headerRule.height + card.pad : card.pad
+        width: root.vertical ? card.width - card.pad * 2
+                             : Math.max(0, hint.x - Style.spacing.lg - x)
+        height: root.vertical ? Math.max(0, hint.y - Style.spacing.sm - y)
+                              : card.height - card.pad * 2
+
         clip: true
         spacing: Style.spacing.sm
         visible: root.count > 0
@@ -610,8 +698,9 @@ Scope {
 
         delegate: ShelfRow {
           required property var modelData
-          width: list.width
-          height: root.rowHeight
+          compact: !root.vertical
+          width: root.vertical ? list.width : root.chipWidth
+          height: root.vertical ? root.rowHeight : list.height
 
           fontFamily: root.fontFamily
           foreground: root.foreground
@@ -642,13 +731,13 @@ Scope {
         }
       }
 
-      // ------------------------------------------------------- empty state
+      // ------------------------------------------------- empty state, tall
       Column {
         anchors.centerIn: parent
         anchors.verticalCenterOffset: -Style.space(10)
-        width: parent.width - Style.spacing.huge * 2
+        width: card.width - Style.spacing.huge * 2
         spacing: Style.spacing.lg
-        visible: root.count === 0
+        visible: root.count === 0 && root.vertical
 
         Text {
           anchors.horizontalCenter: parent.horizontalCenter
@@ -662,7 +751,7 @@ Scope {
           width: parent.width
           horizontalAlignment: Text.AlignHCenter
           wrapMode: Text.WordWrap
-          text: "Drop files and folders here — or throw them at the right edge of the screen."
+          text: "Drop files and folders here — or throw them at the " + root.edge + " edge of the screen."
           color: root.muted
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -681,35 +770,66 @@ Scope {
         }
       }
 
-      // ------------------------------------------------------------ footer
-      Item {
-        id: footer
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.margins: Style.spacing.lg
-        height: Style.space(16)
+      // ------------------------------------------------- empty state, wide
+      //
+      // The same two sentences, on one line: a strip 92px tall has no room to
+      // stack them, and shrinking them to fit would undo the contrast work.
+      Row {
+        x: list.x
+        y: (card.height - height) / 2
+        width: Math.max(0, hint.x - Style.spacing.lg - x)
+        spacing: Style.spacing.lg
+        visible: root.count === 0 && !root.vertical
 
         Text {
-          anchors.left: parent.left
-          anchors.leftMargin: Style.spacing.sm
-          anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
+          text: "\u{F0120}"          // nf-md-tray_arrow_down
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.heading
+          color: dropArea.containsDrag ? root.accent : Util.alpha(root.foreground, 0.35)
+        }
+
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          width: parent.width - Style.space(30)
           elide: Text.ElideRight
-          text: {
-            if (root.flash !== "") return root.flash
-            if (clearButton.hovered)
-              return "Empty the shelf — every file stays where it is"
-            if (pinButton.hovered)
-              return root.pinned ? "Unpin — let it slide away again"
-                                 : "Pin — keep it open and make room for it"
-            if (root.rowHint !== "") return root.rowHint
-            return root.count > 0 ? "Click opens · drag takes it out" : ""
-          }
-          color: root.flash !== "" ? root.accent : root.muted
+          text: "Drop files and folders here — the shelf keeps a path, never a copy, and taking something off it never deletes the file."
+          color: root.muted
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
         }
+      }
+
+      // -------------------------------------------------------------- hint
+      //
+      // Vertical: a footer line along the bottom. Horizontal: right-aligned
+      // in front of the buttons, and silent when it has nothing to add —
+      // there is no room to spend on a permanent hint in a strip.
+      Text {
+        id: hint
+        x: root.vertical ? card.pad + Style.spacing.sm
+                         : actions.x - width - Style.spacing.lg
+        y: root.vertical ? card.height - card.pad - height
+                         : (card.height - height) / 2
+        width: root.vertical ? card.width - card.pad * 2 - Style.spacing.sm
+                             : Style.space(230)
+        horizontalAlignment: root.vertical ? Text.AlignLeft : Text.AlignRight
+        elide: Text.ElideRight
+
+        text: {
+          if (root.flash !== "") return root.flash
+          if (clearButton.hovered)
+            return "Empty the shelf — every file stays where it is"
+          if (pinButton.hovered)
+            return root.pinned ? "Unpin — let it slide away again"
+                               : "Pin — keep it open and make room for it"
+          if (root.rowHint !== "") return root.rowHint
+          if (!root.vertical) return ""
+          return root.count > 0 ? "Click opens · drag takes it out" : ""
+        }
+        color: root.flash !== "" ? root.accent : root.muted
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
       }
     }
   }

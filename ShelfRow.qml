@@ -33,6 +33,11 @@ Rectangle {
   property color fill: Util.alpha(Color.foreground, 0.05)
   property color fillHover: Util.alpha(Color.foreground, 0.11)
 
+  // A chip on a horizontal shelf rather than a row on a vertical one: the
+  // same layout, narrower, with the parent directory dropped. A 92px strip
+  // has room for one line of text, and the file name is the one that matters.
+  property bool compact: false
+
   property string path: ""
   property string fileName: ""
   property string parentDir: ""
@@ -209,6 +214,7 @@ Rectangle {
 
     Text {
       width: parent.width
+      visible: !row.compact || row.missing
       text: row.missing ? "missing" : row.parentDir
       elide: Text.ElideLeft
       color: row.missing ? Color.urgent : row.muted
@@ -236,6 +242,7 @@ Rectangle {
       muted: row.muted
       icon: "\u{F018F}"          // nf-md-content_copy
       tooltip: "Copy as file"
+      tooltipEdge: row.compact ? "bottom" : "left"
       onClicked: row.copyFileRequested()
     }
 
@@ -250,6 +257,7 @@ Rectangle {
       // Not "Delete". The glyph is a trash can and the file is not going
       // anywhere; the word is the only thing that says so at a glance.
       tooltip: "Remove"
+      tooltipEdge: row.compact ? "bottom" : "left"
       onClicked: row.removeRequested()
     }
   }

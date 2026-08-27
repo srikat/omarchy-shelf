@@ -1,16 +1,18 @@
 # Side Shelf
 
-An Omarchy shell plugin (`sridhar.side-shelf`): a sliding drop zone on the
-right screen edge. Throw files and folders at the edge to park them, click to
-open them, drag them back out into whatever needs them later. Pin it to keep it
-open.
+An Omarchy shell plugin (`sridhar.side-shelf`): a sliding drop zone on a screen
+edge. Throw files and folders at the edge to park them, click to open them,
+drag them back out into whatever needs them later. Pin it to keep it open. It
+lives on the right by default and moves to any of the four edges.
 
 <img src="panel.png" alt="The Side Shelf panel down the right edge of the screen: a header reading Side Shelf with an item count and clear and pin buttons, then rows for a PNG with a live thumbnail, a markdown file, and two folders, each showing its name over its parent directory, and a footer line reading Added 2 items." width="330">
+
+<img src="strip.png" alt="The left end of the same shelf moved to the top edge: a short wide strip reading Side Shelf with an item count, then two folder chips showing just their names. The clear and pin buttons sit at the far right of the strip, off the end of this crop." width="640">
 
 ## Using it
 
 **Putting things on it.** Drag a file or folder from anywhere — Nautilus, a
-browser, `dragon --and-exit` in a terminal — at the right edge of the screen.
+browser, `dragon --and-exit` in a terminal — at the shelf's screen edge.
 The edge lights up as an accent seam while a drag is over it, the shelf slides
 out under the cursor, and dropping anywhere on it adds the file. Dropping on
 the seam itself works too, so a throw that never quite makes it into the panel
@@ -29,9 +31,19 @@ anywhere a drag does not land. Middle-click removes a row.
 Dragging out is copy-only. The shelf never moves or deletes the file itself;
 taking something off the shelf only forgets the path.
 
-**Pin.** The pin in the header keeps the shelf open and reserves its column, so
+**Pin.** The pin in the header keeps the shelf open and reserves its strip, so
 tiled windows shrink beside it instead of sitting underneath. Unpinned, it
 slides away as soon as the pointer leaves. The pin survives a restart.
+
+**Where it lives.** `omarchy-shelf position left|right|top|bottom` moves it, and
+the choice is remembered.
+
+Left and right are tall and narrow, and hold a vertical list of rows with each
+file's parent directory under its name. Top and bottom are wide and short, and
+hold the same list turned on its side: narrower chips, no parent directory,
+because a 92px strip has room for one line of text and the file name is the one
+that matters. The hot edge, the slide, the drop seam and the reserved strip all
+follow the shelf around.
 
 Rows for files that have since been deleted or moved are struck through and
 dimmed rather than removed, so a path on an unmounted drive does not quietly
@@ -44,7 +56,7 @@ vanish from the shelf.
 | `SUPER + ALT + P` | Pin / unpin |
 
 There is no toggle key by default: the shelf opens on its own when the pointer
-rests on the right edge or a drag arrives there. Add one in
+rests on its edge or a drag arrives there. Add one in
 `~/.config/hypr/bindings.lua` if you want it:
 
 ```lua
@@ -72,7 +84,9 @@ omarchy-shelf add --quiet ./notes.md      # adds without sliding out
 omarchy-shelf remove ~/Projects           # takes specific paths off
 omarchy-shelf list
 omarchy-shelf pin
-omarchy-shelf hover off                   # stop the right edge opening on hover
+omarchy-shelf position bottom             # left | right | top | bottom
+omarchy-shelf position                    # prints the current edge
+omarchy-shelf hover off                   # stop the edge opening on hover
 omarchy-shelf clear
 ```
 
@@ -80,12 +94,13 @@ Underneath it is shell IPC: `omarchy-shell shelf <method>`.
 
 ## Settings
 
-There are two, both remembered in the state file rather than in `shell.json` —
+All three are remembered in the state file rather than in `shell.json` —
 the shell does not inject plugin settings into `service` plugins, and the shelf
 already had a file to write.
 
 | Setting | Default | Change it with |
 | --- | --- | --- |
+| `edge` | `right` | `omarchy-shelf position left\|right\|top\|bottom` |
 | `pinned` | off | the pin button, `SUPER + ALT + P`, `omarchy-shelf pin` |
 | `hoverReveal` | on | `omarchy-shelf hover off` |
 
@@ -121,9 +136,16 @@ deliver drags to layer-shell surfaces. Hyprland does.
 The plugin is a `service`, not a `panel`, because it has to already be on
 screen when it is needed: the gesture starts by picking a file up in another
 window, and you cannot summon a panel with a file in your hand. So one
-layer-shell surface sits on the right edge for the whole session and an input
+layer-shell surface sits on a screen edge for the whole session and an input
 mask keeps it out of the way — a few pixels of hot edge while closed, the panel
-column while open.
+strip while open.
+
+The surface is anchored to three sides — its own edge plus the two it runs
+along — which leaves the fourth free for `implicitWidth`/`implicitHeight` to
+mean thickness. Everything inside the closed state (the hot-edge pill, its
+backing, the drop seam) is positioned with `x`/`y` rather than anchors: each
+one has to flip axes with the edge, and anchoring two opposite sides *and* a
+size is over-constrained.
 
 That mask is the load-bearing part, and the reason there is no click-outside
 dismissal overlay. A layer surface that claims the whole screen eats the mouse
