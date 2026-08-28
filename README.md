@@ -7,13 +7,15 @@ open. It lives on the right by default and moves to any of the four edges.
 
 <video src="https://github.com/srikat/omarchy-shelf/raw/main/demo.mp4" width="900" controls muted playsinline></video>
 
-Dragging a folder out of Files and onto the right screen edge: the edge answers,
-the shelf slides out under the cursor, and the drop lands.
-([demo.mp4](demo.mp4), 17s, no audio.)
+The whole thing in two minutes: settings driven from the command line, the
+shelf moved between screen edges, and at the end the gesture it exists for -
+a folder dragged out of Files at the screen edge, the edge answering, the shelf
+sliding out under the cursor, and the drop landing.
+([demo.mp4](demo.mp4), 2m11s, 4K, no audio.)
 
-<img src="panel.png" alt="The Shelf panel down the right edge of the screen: a header reading Shelf with an item count and clear and pin buttons, then rows for a markdown file and two folders, each showing its name over its parent directory." width="330">
+<img src="panel.png" alt="The Shelf panel open down the right edge of the screen: a header reading Shelf with a count of 5 and clear and pin buttons, then rows for Videos, Downloads, notes.md, Pictures and Dropbox, each showing its name over its parent directory. The pointer rests on the notes.md row, which has revealed a copy button and a remove button at its right." width="380">
 
-<img src="strip.png" alt="The left end of the same shelf moved to the top edge: a short wide strip reading Shelf with an item count, then chips for a markdown file and two folders showing just their names. The clear and pin buttons sit at the far right of the strip, off the end of this crop." width="640">
+<img src="strip.png" alt="The same five items as a full-width strip along the bottom edge of the screen: Shelf and a count of 5 at the left, then chips for Videos, Downloads, notes.md, Pictures and Dropbox, with the pointer on the notes.md chip showing its copy and remove buttons." width="900">
 
 ## Using it
 
