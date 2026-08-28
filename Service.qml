@@ -305,27 +305,65 @@ Scope {
   }
 
   // Reading it is the untrusted step. Anything that can write to
-  // ~/.local/state can replace this file, and it is parsed inside a shell
-  // process that everything else on the desktop depends on. A byte ceiling
-  // alone is not enough: `head` on a FIFO blocks forever and takes the shell
-  // with it. So the read is bounded on four axes at once.
+  // ~/.local/state can replace this file, and what comes out of it is parsed
+  // inside the process that everything else on the desktop depends on.
   //
-  //   [ -f ]      a regular file, which excludes FIFOs, devices and directories
-  //   [ ! -L ]    not a symlink, so the checks above cannot be aimed elsewhere
-  //   head -c N   a byte ceiling; a truncated read fails JSON.parse, which
-  //               deserialize already treats as an empty shelf
-  //   timeout     a deadline, so nothing above can stall startup regardless
+  // Checking a path and then reading a path are two different files. Between
+  // the two, anything that can write to that directory can put something else
+  // there, and every guarantee the check made is gone: `[ -f ]` and `[ ! -L ]`
+  // followed by `head` is three separate resolutions of the same name and
+  // proves nothing about the third. So the path is opened exactly once and
+  // every question after that is asked of the descriptor.
   //
-  // Item count, path length and control characters are bounded separately, in
-  // ShelfModel.deserialize.
+  //   O_NOFOLLOW   the open itself fails on a symlink, rather than a test
+  //                something else can invalidate afterwards
+  //   O_NONBLOCK   a FIFO with no writer returns instead of blocking, so the
+  //                type check is reached rather than waited out
+  //   S_ISREG      regular files only: no FIFOs, devices or directories
+  //   st_uid       ours, on the descriptor
+  //   st_size      a byte ceiling, checked on the descriptor and enforced
+  //                again by the bounded read, which covers a file that grows
+  //                after the check
+  //   timeout      a deadline over all of it, since an open can still stall
+  //                on an unresponsive mount
+  //
+  // A rename cannot reach the file behind an open descriptor, so the bytes
+  // that arrive are the bytes that were validated. Every refusal prints
+  // nothing, and deserialize answers an empty read with an empty shelf.
+  //
+  // O_NOFOLLOW covers the last component. A symlinked ~/.local/state is a
+  // different problem, and one this shares with everything else that writes
+  // there. Item count, path length and control characters are bounded
+  // separately, in ShelfModel.deserialize.
   readonly property int stateReadLimit: 262144   // 256 KiB; 500 items is ~40 KB
+
+  readonly property string stateReadScript: [
+    "import os, stat, sys",
+    "try:",
+    "    fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+    "except OSError:",
+    "    sys.exit(0)",
+    "try:",
+    "    limit = int(sys.argv[2])",
+    "    st = os.fstat(fd)",
+    "    if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_size > limit:",
+    "        sys.exit(0)",
+    "    out = b''",
+    "    while len(out) < limit:",
+    "        chunk = os.read(fd, limit - len(out))",
+    "        if not chunk:",
+    "            break",
+    "        out += chunk",
+    "finally:",
+    "    os.close(fd)",
+    "sys.stdout.buffer.write(out)"
+  ].join("\n")
 
   function loadState() {
     if (!root.statePath)
       return
-    loadProc.command = ["timeout", "2", "sh", "-c",
-      'F="$1"; [ -f "$F" ] && [ ! -L "$F" ] && head -c "$2" -- "$F" || true',
-      "omarchy-shelf", root.statePath, String(root.stateReadLimit)]
+    loadProc.command = ["timeout", "2", "python3", "-c", root.stateReadScript,
+                        root.statePath, String(root.stateReadLimit)]
     loadProc.running = true
   }
 
