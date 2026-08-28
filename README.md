@@ -5,6 +5,12 @@ screen edge. Throw files and folders at the edge to park them, click to open
 them, drag them back out into whatever needs them later. Pin it to keep it
 open. It lives on the right by default and moves to any of the four edges.
 
+<video src="https://github.com/srikat/omarchy-shelf/raw/main/demo.mp4" width="900" controls muted playsinline></video>
+
+Dragging a folder out of Files and onto the right screen edge: the edge answers,
+the shelf slides out under the cursor, and the drop lands.
+([demo.mp4](demo.mp4), 17s, no audio.)
+
 <img src="panel.png" alt="The Shelf panel down the right edge of the screen: a header reading Shelf with an item count and clear and pin buttons, then rows for a markdown file and two folders, each showing its name over its parent directory." width="330">
 
 <img src="strip.png" alt="The left end of the same shelf moved to the top edge: a short wide strip reading Shelf with an item count, then chips for a markdown file and two folders showing just their names. The clear and pin buttons sit at the far right of the strip, off the end of this crop." width="640">
