@@ -72,6 +72,11 @@ because a 92px strip has room for one line of text and the file name is the one
 that matters. The hot edge, the slide, the drop seam and the reserved strip all
 follow the shelf around.
 
+There is one shelf, on one monitor: it is a place to put things, and two of
+them would be two different places. If that monitor goes away - unplugged,
+switched off, a DisplayPort link dropped on the way out of sleep - the shelf
+moves to whatever screen is left, and returns to its own the moment it is back.
+
 Rows for files that have since been deleted or moved are struck through and
 dimmed rather than removed, so a path on an unmounted drive does not quietly
 vanish from the shelf.

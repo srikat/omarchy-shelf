@@ -78,6 +78,12 @@ Scope {
   property var items: []
   property bool pinned: false
   property bool opened: false
+  // What the surface underneath is doing, mirrored up here because the window
+  // is a `Variants` delegate now: its ids are out of scope from the root, and
+  // they stop existing at all while there is no screen to put it on. The
+  // delegate keeps these in step and clears them on its way out.
+  property bool surfaceHovered: false
+  property bool dragOverSurface: false
   // True for as long as a row is being dragged out. Our own surface is a drag
   // *source* as well as a target, so the DropArea has to ignore the drag it
   // started itself, and the auto-hide has to stay out of the way until the
@@ -179,7 +185,7 @@ Scope {
 
   // Auto-hide, with every reason to stay open checked in one place.
   function considerHiding() {
-    if (root.pinned || surfaceHover.hovered || dropArea.containsDrag || root.dragOutActive)
+    if (root.pinned || root.surfaceHovered || root.dragOverSurface || root.dragOutActive)
       return
     root.opened = false
   }
@@ -386,6 +392,7 @@ Scope {
         Quickshell.execDetached(["mkdir", "-p", root.statePath.slice(0, slash)])
     }
     root.loadState()
+    root.pickScreen()
   }
 
   // ------------------------------------------------------------------- IPC
@@ -495,7 +502,7 @@ Scope {
   Timer {
     id: revealTimer
     interval: root.revealDelay
-    onTriggered: if (surfaceHover.hovered) root.show()
+    onTriggered: if (root.surfaceHovered) root.show()
   }
 
   Timer {
@@ -504,8 +511,106 @@ Scope {
     onTriggered: root.considerHiding()
   }
 
-  PanelWindow {
+  // ---------------------------------------------------------------- screen
+  //
+  // A layer surface belongs to the screen it was created on, and when the
+  // compositor destroys that screen the surface goes with it. Nothing brings
+  // it back: the service keeps running, the state file is intact and the IPC
+  // still answers - `omarchy-shelf show` returns success - but there is no
+  // shelf on screen until the shell is restarted. That is not a rare corner.
+  // Every DisplayPort link drop, dock unplug and monitor power cycle takes the
+  // outputs away for a moment, and Qt hands out a nameless placeholder screen
+  // while they are gone.
+  //
+  // So the window is a `Variants` delegate over a single screen rather than a
+  // bare PanelWindow, the way the bar and the background are: screens coming
+  // and going destroy and rebuild the surface. One shelf, not one per monitor
+  // - it is a place to put things, and two of them would be two places.
+
+  // A screen the compositor will actually put a surface on. The placeholder Qt
+  // invents when every output is gone has no name and no size, and a layer
+  // surface on it draws nothing and never recovers.
+  function isRealScreen(candidate) {
+    return !!candidate && !!candidate.name && candidate.width > 0 && candidate.height > 0
+  }
+
+  // Which monitor the shelf lives on, held by name rather than by object so
+  // that unplugging and replugging one puts the shelf back where it was
+  // instead of leaving it wherever the fallback dropped it. The name is
+  // learned once, from the first screen the shelf ever gets: re-learning it on
+  // every change would overwrite the preferred monitor with the fallback at
+  // exactly the moment the preferred one is unplugged, and the shelf would
+  // never find its way home.
+  property string screenName: ""
+  property var targetScreen: null
+
+  // Assigned rather than bound. A binding that read `screenName` while the
+  // handler for it wrote one back is a binding loop as far as QML is
+  // concerned, however well it settles, and it says so every time the screens
+  // change.
+  function pickScreen() {
+    var screens = Quickshell.screens || []
+    var preferred = null
+    var fallback = null
+
+    for (var i = 0; i < screens.length; i++) {
+      var candidate = screens[i]
+      if (!root.isRealScreen(candidate))
+        continue
+      if (!preferred && candidate.name === root.screenName)
+        preferred = candidate
+      if (!fallback)
+        fallback = candidate
+    }
+
+    var next = preferred || fallback
+    if (root.screenName === "" && root.isRealScreen(next))
+      root.screenName = next.name
+    root.targetScreen = next
+  }
+
+  // Monitors arriving and leaving. Every output can be gone at once - a
+  // display sleep does it - so this fires with nothing to pick as often as it
+  // fires with something, and the shelf has to survive both.
+  Connections {
+    target: Quickshell
+
+    function onScreensChanged() {
+      root.pickScreen()
+    }
+  }
+
+  Variants {
+    model: root.targetScreen ? [root.targetScreen] : []
+
+    delegate: Component {
+      ShelfPanel {
+        required property var modelData
+
+        screen: modelData
+      }
+    }
+  }
+
+  component ShelfPanel: PanelWindow {
     id: window
+
+    // A rebuilt window has never been hovered and has nothing over it, and no
+    // leave event is coming to correct a stale `true` - the pointer is
+    // wherever it was when the monitor went away. Start from nothing, and
+    // start closed unless the shelf is pinned, because an unpinned shelf that
+    // came back open has no hover to fall out of.
+    Component.onCompleted: {
+      root.surfaceHovered = false
+      root.dragOverSurface = false
+      if (!root.pinned)
+        root.opened = false
+    }
+
+    Component.onDestruction: {
+      root.surfaceHovered = false
+      root.dragOverSurface = false
+    }
 
     color: "transparent"
     WlrLayershell.namespace: "omarchy-shelf"
@@ -543,6 +648,7 @@ Scope {
     HoverHandler {
       id: surfaceHover
       onHoveredChanged: {
+        root.surfaceHovered = hovered
         if (hovered) {
           hideTimer.stop()
           if (!root.opened && root.revealsOnHover)
@@ -562,6 +668,8 @@ Scope {
     DropArea {
       id: dropArea
       anchors.fill: parent
+
+      onContainsDragChanged: root.dragOverSurface = dropArea.containsDrag
 
       onEntered: drag => {
         if (root.dragOutActive)
