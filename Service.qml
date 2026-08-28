@@ -84,6 +84,9 @@ Scope {
   // delegate keeps these in step and clears them on its way out.
   property bool surfaceHovered: false
   property bool dragOverSurface: false
+  // Whether the state file has been read yet. Saving before it lands would
+  // write an empty shelf over the items still in flight.
+  property bool stateLoaded: false
   // True for as long as a row is being dragged out. Our own surface is a drag
   // *source* as well as a target, so the DropArea has to ignore the drag it
   // started itself, and the auto-hide has to stay out of the way until the
@@ -278,7 +281,8 @@ Scope {
   function save() {
     if (!root.statePath)
       return
-    stateFile.setText(Model.serialize(root.items, root.pinned, root.reveal, root.edge, root.showHandle))
+    stateFile.setText(Model.serialize(root.items, root.pinned, root.reveal, root.edge,
+                                      root.showHandle, root.screenName))
   }
 
   function restore(text) {
@@ -288,6 +292,9 @@ Scope {
     root.reveal = state.reveal
     root.showHandle = state.handle
     root.edge = state.edge
+    root.screenName = state.screen
+    root.stateLoaded = true
+    root.pickScreen()
     if (root.pinned)
       root.opened = true
     root.classify()
@@ -505,6 +512,15 @@ Scope {
       return String(before - root.items.length)
     }
 
+    // A connector name as the compositor spells it, "DP-1" or "eDP-1". Empty
+    // reports the screen the shelf is on, which is the chosen one whenever it
+    // is connected.
+    function monitor(name: string): string {
+      if (String(name).trim() === "")
+        return root.targetScreen ? root.targetScreen.name : root.screenName
+      return root.setScreen(name)
+    }
+
     function list(): string { return root.allPaths().join("\n") }
     function count(): string { return String(root.items.length) }
     function clear(): string { root.clearAll(); return "0" }
@@ -575,10 +591,11 @@ Scope {
   // Which monitor the shelf lives on, held by name rather than by object so
   // that unplugging and replugging one puts the shelf back where it was
   // instead of leaving it wherever the fallback dropped it. The name is
-  // learned once, from the first screen the shelf ever gets: re-learning it on
-  // every change would overwrite the preferred monitor with the fallback at
-  // exactly the moment the preferred one is unplugged, and the shelf would
-  // never find its way home.
+  // learned once, from the first screen the shelf ever gets, and then written
+  // to the state file: re-learning it on every change would overwrite the
+  // choice with the fallback at exactly the moment the preferred monitor is
+  // unplugged, and re-learning it on every start would hand the shelf to
+  // whichever screen the compositor happened to list first that time.
   property string screenName: ""
   property var targetScreen: null
 
@@ -602,9 +619,29 @@ Scope {
     }
 
     var next = preferred || fallback
-    if (root.screenName === "" && root.isRealScreen(next))
+    if (root.screenName === "" && root.isRealScreen(next)) {
       root.screenName = next.name
+      if (root.stateLoaded)
+        root.save()
+    }
     root.targetScreen = next
+  }
+
+  // A monitor that is not connected is still worth accepting: setting the
+  // shelf up for a dock you are not currently at is the reason to type this
+  // at all. The shelf waits on the fallback until that screen appears.
+  function setScreen(value) {
+    var next = Model.normalizeScreen(value)
+    if (next === "")
+      return root.screenName
+    root.screenName = next
+    root.save()
+    root.pickScreen()
+    if (root.targetScreen && root.targetScreen.name === next)
+      root.say("Shelf moved to " + next)
+    else
+      root.say("Shelf moves to " + next + " once it is connected")
+    return next
   }
 
   // Monitors arriving and leaving. Every output can be gone at once - a

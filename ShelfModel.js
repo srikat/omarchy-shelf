@@ -219,6 +219,8 @@ function merge(existing, incoming) {
 
 var EDGES = ["right", "left", "top", "bottom"]
 var REVEALS = ["hover", "click"]
+// A connector name is short: "eDP-1", "DP-2", "HDMI-A-1", "HEADLESS-3".
+var MAX_SCREEN = 64
 
 // How the shelf comes out on its own: resting the pointer on its edge, or
 // only a click on the handle.
@@ -234,7 +236,19 @@ function normalizeEdge(value) {
     return EDGES.indexOf(text) === -1 ? "right" : text
 }
 
-function serialize(items, pinned, reveal, edge, handle) {
+// The monitor the shelf lives on, spelled the way the compositor spells it.
+// Bounded and held to the characters those names actually use, because this
+// one comes back out of the state file and the state file is untrusted. Empty
+// means no monitor has been chosen yet, which is not the same as a bad one:
+// the shelf takes the first screen it is given and records that.
+function normalizeScreen(value) {
+    var text = String(value === undefined || value === null ? "" : value).trim()
+    if (!text || text.length > MAX_SCREEN)
+        return ""
+    return /^[A-Za-z0-9._-]+$/.test(text) ? text : ""
+}
+
+function serialize(items, pinned, reveal, edge, handle, screen) {
     var plain = items.map(function (item) {
         return { path: item.path, addedAt: item.addedAt }
     })
@@ -244,13 +258,14 @@ function serialize(items, pinned, reveal, edge, handle) {
         reveal: normalizeReveal(reveal),
         handle: handle !== false,
         edge: normalizeEdge(edge),
+        screen: normalizeScreen(screen),
         items: plain
     }, null, 2) + "\n"
 }
 
 // Tolerates an empty file, a bare array, and unknown extra fields.
 function deserialize(text) {
-    var empty = { items: [], pinned: false, reveal: "hover", edge: "right", handle: true }
+    var empty = { items: [], pinned: false, reveal: "hover", edge: "right", handle: true, screen: "" }
     if (!text || !String(text).trim())
         return empty
     var parsed
@@ -282,7 +297,8 @@ function deserialize(text) {
             ? normalizeReveal(parsed.reveal)
             : ((parsed && parsed.hoverReveal === false) ? "click" : "hover"),
         edge: normalizeEdge(parsed && parsed.edge),
-        handle: !(parsed && parsed.handle === false)
+        handle: !(parsed && parsed.handle === false),
+        screen: normalizeScreen(parsed && parsed.screen)
     }
 }
 

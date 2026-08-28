@@ -73,9 +73,14 @@ that matters. The hot edge, the slide, the drop seam and the reserved strip all
 follow the shelf around.
 
 There is one shelf, on one monitor: it is a place to put things, and two of
-them would be two different places. If that monitor goes away - unplugged,
-switched off, a DisplayPort link dropped on the way out of sleep - the shelf
-moves to whatever screen is left, and returns to its own the moment it is back.
+them would be two different places. It takes the first monitor it is given and
+stays there, and `omarchy-shelf monitor DP-1` moves it, naming the monitor the
+way the compositor does. A name that is not connected yet is fine, which is how
+you set the shelf up for a dock you are not currently at.
+
+If the monitor it lives on goes away - unplugged, switched off, a DisplayPort
+link dropped on the way out of sleep - the shelf moves to whatever screen is
+left, and returns to its own the moment it is back.
 
 Rows for files that have since been deleted or moved are struck through and
 dimmed rather than removed, so a path on an unmounted drive does not quietly
@@ -118,6 +123,8 @@ omarchy-shelf list
 omarchy-shelf pin
 omarchy-shelf position bottom             # left | right | top | bottom
 omarchy-shelf position                    # prints the current edge
+omarchy-shelf monitor DP-1                # move it to another monitor
+omarchy-shelf monitor                     # prints the monitor it is on
 omarchy-shelf reveal click                # only open on clicking the handle
 omarchy-shelf reveal hover                # back to opening on a resting pointer
 omarchy-shelf handle off                  # hide the pill on the edge
@@ -128,7 +135,7 @@ Underneath it is shell IPC: `omarchy-shell shelf <method>`.
 
 ## Settings
 
-All four are remembered in the state file rather than in `shell.json` -
+All five are remembered in the state file rather than in `shell.json` -
 the shell does not inject plugin settings into `service` plugins, and the shelf
 already had a file to write.
 
@@ -138,6 +145,7 @@ already had a file to write.
 | `pinned` | off | the pin button, `SUPER + ALT + P`, `omarchy-shelf pin` |
 | `reveal` | `hover` | `omarchy-shelf reveal hover\|click` |
 | `handle` | on | `omarchy-shelf handle on\|off` |
+| `screen` | the first monitor it is given | `omarchy-shelf monitor NAME` |
 
 `reveal: click` only stops a *resting pointer* from opening the shelf. Clicking
 the handle, dragging a file at the edge, and `omarchy-shelf show` all still

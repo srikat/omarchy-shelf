@@ -27,6 +27,9 @@ Commands:
   show | toggle | hide      Slide the shelf in or out
   pin | unpin | pin-toggle  Keep it open and reserve its column, or stop
   position [EDGE]           Move the shelf: left, right, top, bottom
+  monitor [NAME]            Put the shelf on a monitor, named the way the
+                            compositor names it: DP-1, eDP-1, HDMI-A-1. One
+                            that is not connected is remembered until it is
   reveal [hover|click]      Open on resting at the edge, or only on clicking
                             the handle (default hover)
   handle [on|off]           Show or hide the marker on the edge. Hiding it
@@ -38,6 +41,7 @@ Examples:
   omarchy-shelf remove ~/Downloads/report.pdf
   omarchy-shelf list | wl-copy
   omarchy-shelf position bottom
+  omarchy-shelf monitor DP-1
   omarchy-shelf reveal click
   omarchy-shelf handle off
 EOF
@@ -87,6 +91,7 @@ case "${1-help}" in
   unpin)       call unpin ;;
   pin-toggle)  call togglePin ;;
   position|pos) shift; call position "${1-}" ;;
+  monitor|screen) shift; call monitor "${1-}" ;;
   reveal)      shift; call reveal "${1-}" ;;
   handle)      shift; call handle "${1-}" ;;
   hover)       shift; call hover "${1-toggle}" ;;   # the old spelling
