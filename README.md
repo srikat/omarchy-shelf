@@ -152,8 +152,21 @@ Update or remove it later with `omarchy plugin update sridhar.shelf` and
 
 ## Requirements
 
-Omarchy 4 (Quickshell 0.3, Qt 6.11) on Hyprland. `wl-copy` for the
-copy-as-a-file fallback, `xdg-open` to open a row.
+Omarchy 4 (Quickshell 0.3, Qt 6.11) on Hyprland.
+
+External dependencies, all of them already present on a stock Omarchy install:
+
+| Command | Used for | Missing means |
+| --- | --- | --- |
+| `gio` (glib2) | opening a row | clicking a row does nothing |
+| `wl-clipboard` (`wl-copy`) | the copy-as-a-file button | that button does nothing |
+| `xdg-terminal-exec` | opening files whose handler is a terminal app | those files open headless, invisibly |
+| `sh`, `mkdir`, `realpath` (coreutils) | the stat pass and the CLI | folders show as files |
+
+Nothing is installed, no configuration is overwritten, and nothing runs with
+elevated privileges. The plugin writes exactly one file,
+`~/.local/state/omarchy/shelf.json`, and adds one symlink if you choose to put
+`bin/omarchy-shelf` on your `PATH`.
 
 Whether a drop even reaches the shelf is the compositor's call: it has to
 deliver drags to layer-shell surfaces. Hyprland does.
