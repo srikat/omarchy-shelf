@@ -188,6 +188,7 @@ Rectangle {
       // A broken image - a file deleted since it was added - falls back to
       // the generic glyph rather than an empty box.
       text: row.isImage && thumb.status === Image.Error ? "\u{F0214}" : row.icon
+      textFormat: Text.PlainText
       font.family: row.fontFamily
       font.pixelSize: Style.font.display
       color: row.isDir ? row.accent : row.muted
@@ -205,6 +206,10 @@ Rectangle {
     Text {
       width: parent.width
       text: row.fileName
+      // A file name is untrusted input: it arrives from a drop or from the
+      // replaceable state file. AutoText would sniff it for markup and can
+      // pull resources while laying it out. It is a name, so say so.
+      textFormat: Text.PlainText
       elide: Text.ElideMiddle
       color: row.foreground
       font.family: row.fontFamily
@@ -216,6 +221,7 @@ Rectangle {
       width: parent.width
       visible: !row.compact || row.missing
       text: row.missing ? "missing" : row.parentDir
+      textFormat: Text.PlainText
       elide: Text.ElideLeft
       color: row.missing ? Color.urgent : row.muted
       font.family: row.fontFamily

@@ -287,16 +287,50 @@ Scope {
     root.classify()
   }
 
+  // Write-only, deliberately. `preload` is off and there is no `onLoaded`,
+  // because reading this file through FileView is what the hardening below
+  // exists to avoid.
   FileView {
     id: stateFile
     path: root.statePath
-    preload: true
+    preload: false
     atomicWrites: true
     printErrors: false
-    onLoaded: root.restore(stateFile.text())
-    // A missing file is just an empty shelf on first run; it gets written as
-    // soon as something lands.
-    onLoadFailed: error => {}
+  }
+
+  // Reading it is the untrusted step. Anything that can write to
+  // ~/.local/state can replace this file, and it is parsed inside a shell
+  // process that everything else on the desktop depends on. A byte ceiling
+  // alone is not enough: `head` on a FIFO blocks forever and takes the shell
+  // with it. So the read is bounded on four axes at once.
+  //
+  //   [ -f ]      a regular file, which excludes FIFOs, devices and directories
+  //   [ ! -L ]    not a symlink, so the checks above cannot be aimed elsewhere
+  //   head -c N   a byte ceiling; a truncated read fails JSON.parse, which
+  //               deserialize already treats as an empty shelf
+  //   timeout     a deadline, so nothing above can stall startup regardless
+  //
+  // Item count, path length and control characters are bounded separately, in
+  // ShelfModel.deserialize.
+  readonly property int stateReadLimit: 262144   // 256 KiB; 500 items is ~40 KB
+
+  function loadState() {
+    if (!root.statePath)
+      return
+    loadProc.command = ["timeout", "2", "sh", "-c",
+      'F="$1"; [ -f "$F" ] && [ ! -L "$F" ] && head -c "$2" -- "$F" || true',
+      "omarchy-shelf", root.statePath, String(root.stateReadLimit)]
+    loadProc.running = true
+  }
+
+  Process {
+    id: loadProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      // Empty covers every refusal above as well as a missing file, and
+      // deserialize answers all of them with an empty shelf and defaults.
+      onStreamFinished: root.restore(text)
+    }
   }
 
   // A drop carries a path, not a file type: whether it is a directory, and
@@ -351,6 +385,7 @@ Scope {
       if (slash > 0)
         Quickshell.execDetached(["mkdir", "-p", root.statePath.slice(0, slash)])
     }
+    root.loadState()
   }
 
   // ------------------------------------------------------------------- IPC
@@ -907,6 +942,9 @@ Scope {
         width: root.vertical ? card.width - card.pad * 2 - Style.spacing.sm
                              : Style.space(320)
         horizontalAlignment: root.vertical ? Text.AlignLeft : Text.AlignRight
+        // Carries file names inside its flash messages, so same rule as the
+        // row labels.
+        textFormat: Text.PlainText
         elide: Text.ElideRight
 
         text: {

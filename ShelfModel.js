@@ -11,6 +11,41 @@
 
 var STATE_VERSION = 1
 
+// The state file is world-writable-adjacent: anything that can write to
+// ~/.local/state can replace it, and it is parsed by a service inside the
+// long-lived shell process. So it is treated as untrusted input, and every
+// dimension of it is bounded here. The read itself is bounded separately, in
+// Service.qml, because a byte ceiling cannot stop a FIFO from blocking.
+var MAX_ITEMS = 500
+// Longer than PATH_MAX, so a real path is never the thing that trips it.
+var MAX_PATH = 4096
+// What any single label may render. Elision handles width; this handles the
+// cost of laying out a pathological string in the first place.
+var MAX_LABEL = 256
+
+function truncate(text, limit) {
+    var s = String(text)
+    return s.length > limit ? s.slice(0, limit) : s
+}
+
+// A path this plugin is willing to hold. Absolute, bounded, and free of
+// control characters -- a newline would also break the `text/uri-list`
+// contract on drag-out and on the clipboard.
+function acceptablePath(path) {
+    if (typeof path !== "string")
+        return false
+    if (path.length === 0 || path.length > MAX_PATH)
+        return false
+    if (path.charAt(0) !== "/")
+        return false
+    for (var i = 0; i < path.length; i++) {
+        var code = path.charCodeAt(i)
+        if (code < 0x20 || code === 0x7f)
+            return false
+    }
+    return true
+}
+
 var ICONS = {
     file: "\u{F0214}",     // nf-md-file
     image: "\u{F021F}",    // nf-md-file_image
@@ -54,8 +89,8 @@ function parentLabel(path, home) {
     if (home && dir === String(home))
         return "~"
     if (home && dir.indexOf(String(home) + "/") === 0)
-        return "~" + dir.slice(String(home).length)
-    return dir
+        return truncate("~" + dir.slice(String(home).length), MAX_LABEL)
+    return truncate(dir, MAX_LABEL)
 }
 
 function extensionOf(path) {
@@ -113,7 +148,7 @@ function makeItem(path, addedAt, isDir) {
     var kind = kindOf(path, dir)
     return {
         path: String(path).replace(/\/+$/, "") || "/",
-        fileName: baseName(path),
+        fileName: truncate(baseName(path), MAX_LABEL),
         ext: extensionOf(path),
         kind: kind,
         icon: iconFor(path, dir),
@@ -152,8 +187,10 @@ function itemsFromDrop(entries, addedAt) {
         if (!raw || raw.indexOf("#") === 0)
             continue
         var path = raw.indexOf("/") === 0 ? raw : pathFromUrl(raw)
-        if (!path || seen[path])
+        if (!path || seen[path] || !acceptablePath(path))
             continue
+        if (items.length >= MAX_ITEMS)
+            break
         seen[path] = true
         items.push(makeItem(path, addedAt))
     }
@@ -173,7 +210,11 @@ function merge(existing, incoming) {
         have[incoming[j].path] = true
         fresh.push(incoming[j])
     }
-    return { items: fresh.concat(existing), added: fresh.length }
+    var merged = fresh.concat(existing)
+    return {
+        items: merged.length > MAX_ITEMS ? merged.slice(0, MAX_ITEMS) : merged,
+        added: fresh.length
+    }
 }
 
 var EDGES = ["right", "left", "top", "bottom"]
@@ -222,12 +263,14 @@ function deserialize(text) {
         ? parsed
         : (parsed && Array.isArray(parsed.items) ? parsed.items : [])
     var items = []
-    for (var i = 0; i < list.length; i++) {
+    for (var i = 0; i < list.length && items.length < MAX_ITEMS; i++) {
         var entry = list[i]
         var path = typeof entry === "string" ? entry : (entry && entry.path)
-        if (!path || String(path).indexOf("/") !== 0)
+        if (!acceptablePath(path))
             continue
-        items.push(makeItem(String(path), entry && entry.addedAt ? entry.addedAt : 0))
+        var when = entry && typeof entry.addedAt === "number" && isFinite(entry.addedAt)
+            ? entry.addedAt : 0
+        items.push(makeItem(path, when))
     }
     return {
         items: items,
