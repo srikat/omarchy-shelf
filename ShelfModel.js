@@ -1,12 +1,12 @@
 .pragma library
 
-// Shelf — pure helpers over plain data, no QML object references.
+// Shelf - pure helpers over plain data, no QML object references.
 //
 // An item is: { path, fileName, ext, kind, icon, isImage, isDir, missing, addedAt }
 //
 // The path/uri helpers and the Nerd Font glyph table are adapted from
 // bylund.ledge (MIT), which checked every codepoint against the font's own
-// `post` table — the Material Design range is dense enough that a neighbouring
+// `post` table - the Material Design range is dense enough that a neighbouring
 // codepoint is a completely unrelated picture.
 
 var STATE_VERSION = 1
@@ -244,7 +244,7 @@ function deserialize(text) {
 }
 
 // $XDG_STATE_HOME when the session sets one, ~/.local/state otherwise. An
-// empty string means "nowhere to persist" — the shelf still works for as long
+// empty string means "nowhere to persist" - the shelf still works for as long
 // as the shell runs.
 function stateFile(home, stateHome) {
     var base = stateHome ? String(stateHome)

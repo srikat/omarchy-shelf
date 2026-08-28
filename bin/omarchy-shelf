@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# omarchy-shelf — command line front end for the Shelf plugin.
+# omarchy-shelf - command line front end for the Shelf plugin.
 #
 # The plugin runs inside the long-lived omarchy-shell process; this script only
 # talks to it over the shell's own IPC. The shelf registers one IPC target

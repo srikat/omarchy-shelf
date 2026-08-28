@@ -11,8 +11,8 @@ open. It lives on the right by default and moves to any of the four edges.
 
 ## Using it
 
-**Putting things on it.** Drag a file or folder from anywhere — Nautilus, a
-browser, `dragon --and-exit` in a terminal — at the shelf's screen edge.
+**Putting things on it.** Drag a file or folder from anywhere - Nautilus, a
+browser, `dragon --and-exit` in a terminal - at the shelf's screen edge.
 The edge lights up as an accent seam while a drag is over it, the shelf slides
 out under the cursor, and dropping anywhere on it adds the file. Dropping on
 the seam itself works too, so a throw that never quite makes it into the panel
@@ -23,7 +23,7 @@ an image dragged out of one usually comes with a `text/uri-list` pointing at a
 temp file, and that is what gets stored.
 
 **Getting them back.** Click a row to open it with `xdg-open`. Press and drag a
-row to take the file out into any other window — a real XDG drag carrying
+row to take the file out into any other window - a real XDG drag carrying
 `text/uri-list`, so upload forms, file managers and chat apps all take it. The
 copy button puts it on the clipboard *as a file*, which is the fallback for
 anywhere a drag does not land. Middle-click removes a row.
@@ -37,7 +37,7 @@ slides away as soon as the pointer leaves. The pin survives a restart.
 
 **How it opens.** By default, resting the pointer on its edge for a moment
 brings it out. `omarchy-shelf reveal click` turns that off: the shelf then
-stays shut until you click the little handle on the edge — the hairline pill
+stays shut until you click the little handle on the edge - the hairline pill
 that marks where it lives. The handle is clickable in either mode, and grows
 more visible when it is the only way in.
 
@@ -46,7 +46,7 @@ should stay.
 
 **The handle.** That hairline pill on the edge is the only thing the shelf
 draws while it is shut. `omarchy-shelf handle off` takes it away and leaves a
-bare screen edge that still opens on a hover, a click or a drag — it hides the
+bare screen edge that still opens on a hover, a click or a drag - it hides the
 marker, not the target. Turning it off *and* setting `reveal click` leaves an
 invisible click target, which works but is only worth doing if you already know
 where it is.
@@ -81,7 +81,7 @@ o.bind("SUPER + ALT + D", "Shelf", "omarchy-shelf toggle")
 ```
 
 Pick a combo that is actually free. `SUPER + ALT + S` is the obvious guess and
-is already the Omarchy default for moving a window to the scratchpad — and you
+is already the Omarchy default for moving a window to the scratchpad - and you
 will not find that by reading your own `bindings.lua`, because the defaults
 live in `/usr/share/omarchy/default/hypr/bindings/`. `hyprctl binds` is the
 only view that shows both.
@@ -112,7 +112,7 @@ Underneath it is shell IPC: `omarchy-shell shelf <method>`.
 
 ## Settings
 
-All four are remembered in the state file rather than in `shell.json` —
+All four are remembered in the state file rather than in `shell.json` -
 the shell does not inject plugin settings into `service` plugins, and the shelf
 already had a file to write.
 
@@ -161,11 +161,11 @@ The plugin is a `service`, not a `panel`, because it has to already be on
 screen when it is needed: the gesture starts by picking a file up in another
 window, and you cannot summon a panel with a file in your hand. So one
 layer-shell surface sits on a screen edge for the whole session and an input
-mask keeps it out of the way — a few pixels of hot edge while closed, the panel
+mask keeps it out of the way - a few pixels of hot edge while closed, the panel
 strip while open.
 
-The surface is anchored to three sides — its own edge plus the two it runs
-along — which leaves the fourth free for `implicitWidth`/`implicitHeight` to
+The surface is anchored to three sides - its own edge plus the two it runs
+along - which leaves the fourth free for `implicitWidth`/`implicitHeight` to
 mean thickness. Everything inside the closed state (the hot-edge pill, its
 backing, the drop seam) is positioned with `x`/`y` rather than anchors: each
 one has to flip axes with the edge, and anchoring two opposite sides *and* a
@@ -185,7 +185,7 @@ the hard way in [bylund.ledge](https://github.com/andreas-bylund/omarchy-ledge)
   `Drag.Automatic`. A bare `Drag.active` toggle starts an internal-only drag
   that looks exactly like nothing happening.
 - Qt refuses to start an automatic drag on an attached object that is not
-  already active, and *warns* rather than throwing — so `beginDrag()` sets
+  already active, and *warns* rather than throwing - so `beginDrag()` sets
   `active`, calls `startDrag()`, and clears it again.
 - A drag needs a real Wayland input serial, so it must begin inside the mouse
   event that triggered it. Never from a timer or a shortcut.
@@ -200,7 +200,7 @@ Nothing here branches on it.
 | `Service.qml` | the surface, the mask, state, persistence, IPC |
 | `ShelfRow.qml` | one row: thumbnail, click-to-open, drag-out |
 | `ShelfIconButton.qml` | header and row buttons |
-| `ShelfModel.js` | pure helpers — paths, uris, icons, serialisation |
+| `ShelfModel.js` | pure helpers - paths, uris, icons, serialisation |
 | `bin/omarchy-shelf` | CLI over the IPC target |
 
 The plugin id, the IPC target and the CLI all say the same thing:
@@ -233,20 +233,20 @@ Use `omarchy restart shell` after editing.
 
 `bylund.ledge` does the same job from the bar: a drop target on the bar icon
 and a popup card under it. Shelf is the same idea against the screen edge
-instead, with a pin. Running both is fine — they keep separate lists — but one
+instead, with a pin. Running both is fine - they keep separate lists - but one
 of them is probably redundant.
 
 ## Nothing here deletes your files
 
-The shelf stores paths, not copies. Every way of taking something off it — the
+The shelf stores paths, not copies. Every way of taking something off it - the
 delete button on a row, middle-clicking a row, "clear the shelf" in the header,
-`omarchy-shelf remove`, `omarchy-shelf clear` — only forgets the path. The file
+`omarchy-shelf remove`, `omarchy-shelf clear` - only forgets the path. The file
 stays exactly where it was.
 
 The panel says so too, rather than making you come here for it. The buttons are
-labelled **Remove** and **Remove all**, never "delete" — the glyph is a trash
+labelled **Remove** and **Remove all**, never "delete" - the glyph is a trash
 can, and the word next to it is the only thing that says otherwise at a glance.
-Hovering either one also spells it out in the footer ("Take it off the shelf —
+Hovering either one also spells it out in the footer ("Take it off the shelf -
 the file itself stays put"), the empty state states it up front, and the flash
 afterwards confirms it.
 
@@ -263,6 +263,6 @@ unmounted drive does not quietly empty your shelf.
 
 MIT. The path helpers, the Nerd Font glyph table and every hard-won fact about
 Wayland drag and drop are adapted from
-[bylund.ledge](https://github.com/andreas-bylund/omarchy-ledge) (MIT) — its
+[bylund.ledge](https://github.com/andreas-bylund/omarchy-ledge) (MIT) - its
 `docs/drag-and-drop.md` is the reference for this on Hyprland, and this plugin
 would have been a lot more guesswork without it.

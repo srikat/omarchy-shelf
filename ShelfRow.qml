@@ -1,4 +1,4 @@
-// Shelf — one file or folder on the shelf.
+// Shelf - one file or folder on the shelf.
 //
 // Click opens it. Press and move drags it out into any other window as a real
 // XDG drag (text/uri-list), which is the whole point of parking it here.
@@ -13,7 +13,7 @@
 //     already active, and *warns* rather than throwing. So active is set,
 //     startDrag() is called, and active is cleared again.
 //   * Wayland needs a real input serial, so the drag has to begin inside the
-//     mouse event that triggered it — never from a timer or a shortcut.
+//     mouse event that triggered it - never from a timer or a shortcut.
 //
 // What the target did with the file cannot be read back: under Wayland
 // Drag.onDragFinished reports Qt.IgnoreAction for every drag. Nothing here
@@ -53,7 +53,7 @@ Rectangle {
   // file" unless something says otherwise the moment before you click.
   readonly property string actionHint: {
     if (removeButton.hovered)
-      return "Take it off the shelf — the file itself stays put"
+      return "Take it off the shelf - the file itself stays put"
     if (copyButton.hovered)
       return "Copy as a file, to paste into anything"
     return ""
@@ -94,7 +94,7 @@ Rectangle {
   })
   // Only ever the grabbed thumbnail, never the file url: pointing this at the
   // file would drag a full-size image across the screen, and `imageSourceSize`
-  // cannot bound it back down — Qt ignores that property on a grabToImage url
+  // cannot bound it back down - Qt ignores that property on a grabToImage url
   // and says so in the log every time. `grabToImage` is already told the size,
   // so there is nothing left to bound. The grab runs on hover and the drag
   // needs a 10 px move, so it has landed by then; if it somehow has not, the
@@ -185,7 +185,7 @@ Rectangle {
     Text {
       anchors.centerIn: parent
       visible: !thumb.visible
-      // A broken image — a file deleted since it was added — falls back to
+      // A broken image - a file deleted since it was added - falls back to
       // the generic glyph rather than an empty box.
       text: row.isImage && thumb.status === Image.Error ? "\u{F0214}" : row.icon
       font.family: row.fontFamily

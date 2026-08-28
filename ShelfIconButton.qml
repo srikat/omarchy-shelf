@@ -1,4 +1,4 @@
-// Shelf — a small glyph button, with a tooltip drawn inside the panel.
+// Shelf - a small glyph button, with a tooltip drawn inside the panel.
 //
 // The tooltip is a plain Rectangle in the panel's own scene, not a popup: a
 // second layer-shell surface would be one more thing to manage while a drag is

@@ -1,11 +1,11 @@
-// Shelf — a sliding right-edge drop zone for files and folders.
+// Shelf - a sliding right-edge drop zone for files and folders.
 //
 // The plugin is a `service` rather than a `panel` because it has to be on
 // screen *before* it is asked for: the whole gesture is picking a file up in
 // another window and throwing it at the right edge, and you cannot summon a
 // panel with a file already in your hand. So one layer-shell surface lives on
 // the right edge for the whole session, and an input mask keeps it out of the
-// way — a few pixels of hot edge while closed, the panel column while open.
+// way - a few pixels of hot edge while closed, the panel column while open.
 //
 // That mask is the load-bearing part. A layer surface that claims the whole
 // screen eats the mouse press that *starts* a drag in the window underneath,
@@ -32,7 +32,7 @@ Scope {
   // Which screen edge the shelf lives on: "right" (default), "left", "top" or
   // "bottom". Left and right are tall and narrow and hold a vertical list;
   // top and bottom are wide and short and hold a horizontal one. The two are
-  // the same list with a different delegate width and one subtitle hidden —
+  // the same list with a different delegate width and one subtitle hidden -
   // a shelf you cannot read the names on is not worth having.
   property string edge: "right"
   readonly property bool vertical: root.edge === "left" || root.edge === "right"
@@ -65,7 +65,7 @@ Scope {
   readonly property color foreground: Color.menu.text
   readonly property color borderColor: Color.menu.border
   readonly property color accent: Color.accent
-  // NOT Color.muted. That token is decorative — in Tokyo Night it is #414868
+  // NOT Color.muted. That token is decorative - in Tokyo Night it is #414868
   // on a #1a1b26 card, a contrast ratio of 1.9:1, which is invisible at
   // caption size. Secondary text here is the theme foreground held back with
   // alpha instead, which lands near 4.6:1 on the same card and follows any
@@ -172,8 +172,8 @@ Scope {
     if (root.showHandle)
       root.say("Handle shown")
     else
-      root.say(root.revealsOnHover ? "Handle hidden — the edge still opens on hover"
-                                   : "Handle hidden — the edge still opens on a click")
+      root.say(root.revealsOnHover ? "Handle hidden - the edge still opens on hover"
+                                   : "Handle hidden - the edge still opens on a click")
     return root.showHandle
   }
 
@@ -213,14 +213,14 @@ Scope {
     root.removePath(path)
     // The row is gone, so its hover hint will never clear itself.
     root.rowHint = ""
-    root.say("Off the shelf — " + Model.baseName(path) + " is untouched")
+    root.say("Off the shelf - " + Model.baseName(path) + " is untouched")
   }
 
   function clearAll() {
     root.items = []
     root.rowHint = ""
     root.save()
-    root.say("Shelf cleared — no files were deleted")
+    root.say("Shelf cleared - no files were deleted")
   }
 
   function allPaths() {
@@ -389,8 +389,8 @@ Scope {
     }
 
     // Accepts {"paths": [...]} or newline separated paths. A bare JSON array
-    // never survives the IPC layer — an argument starting with "[" is read as
-    // an argument *list* and splatted across the method's parameters — so the
+    // never survives the IPC layer - an argument starting with "[" is read as
+    // an argument *list* and splatted across the method's parameters - so the
     // object wrapper is what keeps names with spaces or commas in one piece.
     function add(argument: string): string {
       var added = root.addFromArgument(argument)
@@ -417,7 +417,7 @@ Scope {
   }
 
   // Normalizes an IPC argument into shelf items, so add and remove agree on
-  // what a path is — urls, ~-free absolute paths, JSON or newlines.
+  // what a path is - urls, ~-free absolute paths, JSON or newlines.
   function entriesFromArgument(argument) {
     var text = String(argument)
     var entries = null
@@ -428,7 +428,7 @@ Scope {
       else if (parsed && Array.isArray(parsed.paths))
         entries = parsed.paths
     } catch (e) {
-      // Not JSON — fall through to the newline form.
+      // Not JSON - fall through to the newline form.
     }
     if (!entries)
       entries = text.split("\n")
@@ -643,7 +643,7 @@ Scope {
       width: root.vertical ? root.thickness - root.gap : window.width - root.gap * 2
       height: root.vertical ? window.height - root.gap * 2 : root.thickness - root.gap
 
-      // Closed, the card sits one full thickness beyond its edge — entirely
+      // Closed, the card sits one full thickness beyond its edge - entirely
       // off screen. Open, it lands flush against the gap.
       x: root.vertical
          ? (root.opened ? (root.atFarSide ? window.width - width - root.gap : root.gap)
@@ -826,7 +826,7 @@ Scope {
           width: parent.width
           horizontalAlignment: Text.AlignHCenter
           wrapMode: Text.WordWrap
-          text: "Drop files and folders here — or throw them at the " + root.edge + " edge of the screen."
+          text: "Drop files and folders here - or throw them at the " + root.edge + " edge of the screen."
           color: root.muted
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -868,7 +868,7 @@ Scope {
           anchors.verticalCenter: parent.verticalCenter
           width: parent.width - Style.space(30)
           elide: Text.ElideRight
-          text: "Drop files and folders here — the shelf keeps a path, never a copy, and taking something off it never deletes the file."
+          text: "Drop files and folders here - the shelf keeps a path, never a copy, and taking something off it never deletes the file."
           color: root.muted
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
@@ -878,7 +878,7 @@ Scope {
       // -------------------------------------------------------------- hint
       //
       // Vertical: a footer line along the bottom. Horizontal: right-aligned
-      // in front of the buttons, and silent when it has nothing to add —
+      // in front of the buttons, and silent when it has nothing to add -
       // there is no room to spend on a permanent hint in a strip.
       Text {
         id: hint
@@ -898,10 +898,10 @@ Scope {
         text: {
           if (root.flash !== "") return root.flash
           if (clearButton.hovered)
-            return "Empty the shelf — every file stays where it is"
+            return "Empty the shelf - every file stays where it is"
           if (pinButton.hovered)
-            return root.pinned ? "Unpin — let it slide away again"
-                               : "Pin — keep it open and make room for it"
+            return root.pinned ? "Unpin - let it slide away again"
+                               : "Pin - keep it open and make room for it"
           if (root.rowHint !== "") return root.rowHint
           if (!root.vertical) return ""
           return root.count > 0 ? "Click opens · drag takes it out" : ""
