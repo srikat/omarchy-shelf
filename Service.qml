@@ -686,7 +686,7 @@ Scope {
           anchors.left: parent.left
           anchors.leftMargin: Style.spacing.sm
           anchors.verticalCenter: parent.verticalCenter
-          text: "Side Shelf"
+          text: "Shelf"
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.title

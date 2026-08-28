@@ -1,13 +1,13 @@
-# Side Shelf
+# Shelf
 
-An Omarchy shell plugin (`sridhar.side-shelf`): a sliding drop zone on a screen
-edge. Throw files and folders at the edge to park them, click to open them,
-drag them back out into whatever needs them later. Pin it to keep it open. It
-lives on the right by default and moves to any of the four edges.
+An Omarchy shell plugin (`sridhar.shelf`): a drop zone that slides out of a
+screen edge. Throw files and folders at the edge to park them, click to open
+them, drag them back out into whatever needs them later. Pin it to keep it
+open. It lives on the right by default and moves to any of the four edges.
 
-<img src="panel.png" alt="The Side Shelf panel down the right edge of the screen: a header reading Side Shelf with an item count and clear and pin buttons, then rows for a PNG with a live thumbnail, a markdown file, and two folders, each showing its name over its parent directory, and a footer line reading Added 2 items." width="330">
+<img src="panel.png" alt="The Shelf panel down the right edge of the screen: a header reading Shelf with an item count and clear and pin buttons, then rows for a markdown file and two folders, each showing its name over its parent directory." width="330">
 
-<img src="strip.png" alt="The left end of the same shelf moved to the top edge: a short wide strip reading Side Shelf with an item count, then two folder chips showing just their names. The clear and pin buttons sit at the far right of the strip, off the end of this crop." width="640">
+<img src="strip.png" alt="The left end of the same shelf moved to the top edge: a short wide strip reading Shelf with an item count, then chips for a markdown file and two folders showing just their names. The clear and pin buttons sit at the far right of the strip, off the end of this crop." width="640">
 
 ## Using it
 
@@ -77,7 +77,7 @@ rests on its edge or a drag arrives there. Add one in
 
 ```lua
 o.bind("SUPER + ALT + P", "Pin the shelf", "omarchy-shelf pin-toggle")
-o.bind("SUPER + ALT + D", "Side Shelf", "omarchy-shelf toggle")
+o.bind("SUPER + ALT + D", "Shelf", "omarchy-shelf toggle")
 ```
 
 Pick a combo that is actually free. `SUPER + ALT + S` is the obvious guess and
@@ -91,7 +91,7 @@ only view that shows both.
 `bin/omarchy-shelf` is a thin wrapper over the shell IPC. Put it on `PATH`:
 
 ```bash
-ln -s ~/.config/omarchy/plugins/sridhar.side-shelf/bin/omarchy-shelf ~/.local/bin/
+ln -s ~/.config/omarchy/plugins/sridhar.shelf/bin/omarchy-shelf ~/.local/bin/
 ```
 
 ```bash
@@ -137,15 +137,15 @@ State lives in `~/.local/state/omarchy/shelf.json`.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/srikat/omarchy-side-shelf.git --enable --yes
+omarchy plugin add https://github.com/srikat/omarchy-shelf.git --enable --yes
 ```
 
 Plugins run as unsandboxed code inside `omarchy-shell`, so `omarchy plugin add`
 lands them disabled by default and asks you to review the code first. Drop
 `--enable --yes` to take that path; it is four small files.
 
-Update or remove it later with `omarchy plugin update sridhar.side-shelf` and
-`omarchy plugin remove sridhar.side-shelf`.
+Update or remove it later with `omarchy plugin update sridhar.shelf` and
+`omarchy plugin remove sridhar.shelf`.
 
 ## Requirements
 
@@ -203,10 +203,9 @@ Nothing here branches on it.
 | `ShelfModel.js` | pure helpers — paths, uris, icons, serialisation |
 | `bin/omarchy-shelf` | CLI over the IPC target |
 
-The plugin id and display name are `sridhar.side-shelf` / "Side Shelf", but the
-IPC target and the CLI are the shorter `shelf` / `omarchy-shelf` —
-`omarchy-side-shelf` is a lot to type at a prompt. If something else on your
-system already claims the `shelf` IPC target, change `IpcHandler.target` in
+The plugin id, the IPC target and the CLI all say the same thing:
+`sridhar.shelf`, `shelf`, `omarchy-shelf`. If something else on your system
+already claims the `shelf` IPC target, change `IpcHandler.target` in
 `Service.qml` and `IPC_TARGET` in `bin/omarchy-shelf` to match.
 
 ### Hacking on it
@@ -215,9 +214,9 @@ Clone anywhere and symlink the checkout in, so edits land in the repo rather
 than in `~/.config`:
 
 ```bash
-git clone https://github.com/srikat/omarchy-side-shelf.git
-ln -s "$PWD/omarchy-side-shelf" ~/.config/omarchy/plugins/sridhar.side-shelf
-omarchy-shell shell rescanPlugins && omarchy plugin enable sridhar.side-shelf
+git clone https://github.com/srikat/omarchy-shelf.git
+ln -s "$PWD/omarchy-shelf" ~/.config/omarchy/plugins/sridhar.shelf
+omarchy-shell shell rescanPlugins && omarchy plugin enable sridhar.shelf
 ```
 
 ### Debugging
@@ -233,7 +232,7 @@ Use `omarchy restart shell` after editing.
 ## Overlap with Ledge
 
 `bylund.ledge` does the same job from the bar: a drop target on the bar icon
-and a popup card under it. Side Shelf is the same idea against the screen edge
+and a popup card under it. Shelf is the same idea against the screen edge
 instead, with a pin. Running both is fine — they keep separate lists — but one
 of them is probably redundant.
 
