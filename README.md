@@ -234,14 +234,19 @@ already claims the `shelf` IPC target, change `IpcHandler.target` in
 
 ### Hacking on it
 
-Clone anywhere and symlink the checkout in, so edits land in the repo rather
-than in `~/.config`:
+Work on a checkout rather than on the copy under `~/.config`, so edits land in
+git. Fork or download the repository however you normally would, then point
+Omarchy at that tree instead of letting it keep its own copy - from inside the
+checkout:
 
 ```bash
-git clone https://github.com/srikat/omarchy-shelf.git
-ln -s "$PWD/omarchy-shelf" ~/.config/omarchy/plugins/sridhar.shelf
+ln -s "$PWD" ~/.config/omarchy/plugins/sridhar.shelf
 omarchy-shell shell rescanPlugins && omarchy plugin enable sridhar.shelf
 ```
+
+Installing normally with `omarchy plugin add` is the other way round: it keeps
+its own clone under `~/.config/omarchy/plugins/`, which is the right thing for
+using the plugin and the wrong thing for changing it.
 
 ### Debugging
 
