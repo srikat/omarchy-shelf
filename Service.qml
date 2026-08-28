@@ -227,8 +227,22 @@ Scope {
     return root.items.map(function (item) { return item.path })
   }
 
+  // `gio open`, not `xdg-open`. Two separate reasons, and a row that opened
+  // nothing at all needed both fixed:
+  //
+  //   * Terminal apps. `xdg-open` runs a `Terminal=true` handler's Exec line
+  //     with no terminal attached, so clicking a .md whose handler is nvim
+  //     started a headless nvim that drew nothing and never exited - one more
+  //     orphan per click. GLib finds a terminal (via xdg-terminal-exec) and
+  //     runs `foot -e nvim <file>`.
+  //   * They disagree about types. `xdg-mime query filetype notes.md` says
+  //     text/plain, so xdg-open picked the text/plain handler; GIO says
+  //     text/markdown and picks the markdown one, which is the app actually
+  //     registered for it.
+  //
+  // Directories still land in the file manager either way.
   function openPath(path) {
-    Quickshell.execDetached(["xdg-open", path])
+    Quickshell.execDetached(["gio", "open", path])
     root.say("Opened " + Model.baseName(path))
   }
 

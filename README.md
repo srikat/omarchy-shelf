@@ -22,7 +22,10 @@ Only local paths are kept. A remote URL dragged out of a browser is ignored;
 an image dragged out of one usually comes with a `text/uri-list` pointing at a
 temp file, and that is what gets stored.
 
-**Getting them back.** Click a row to open it with `xdg-open`. Press and drag a
+**Getting them back.** Click a row to open it with `gio open`, which unlike
+`xdg-open` finds a terminal for handlers that need one - clicking a file whose
+editor is nvim gets you nvim in a terminal, not a headless process you cannot
+see. Press and drag a
 row to take the file out into any other window - a real XDG drag carrying
 `text/uri-list`, so upload forms, file managers and chat apps all take it. The
 copy button puts it on the clipboard *as a file*, which is the fallback for
