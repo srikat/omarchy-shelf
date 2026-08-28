@@ -248,6 +248,28 @@ function normalizeScreen(value) {
     return /^[A-Za-z0-9._-]+$/.test(text) ? text : ""
 }
 
+// How many bytes the state helper should expect on stdin. It reads exactly
+// this many rather than waiting for end of input, and a file name outside
+// ASCII makes it differ from `text.length`.
+function byteLength(text) {
+    var s = String(text)
+    var bytes = 0
+    for (var i = 0; i < s.length; i++) {
+        var code = s.charCodeAt(i)
+        if (code < 0x80)
+            bytes += 1
+        else if (code < 0x800)
+            bytes += 2
+        else if (code >= 0xd800 && code <= 0xdbff) {
+            // A surrogate pair is one codepoint and four bytes.
+            bytes += 4
+            i++
+        } else
+            bytes += 3
+    }
+    return bytes
+}
+
 function serialize(items, pinned, reveal, edge, handle, screen) {
     var plain = items.map(function (item) {
         return { path: item.path, addedAt: item.addedAt }

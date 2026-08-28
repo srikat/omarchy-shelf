@@ -281,8 +281,19 @@ Scope {
   function save() {
     if (!root.statePath)
       return
-    stateFile.setText(Model.serialize(root.items, root.pinned, root.reveal, root.edge,
-                                      root.showHandle, root.screenName))
+    // One write at a time. `save()` serializes whatever the shelf holds now,
+    // so a write that arrives mid-flight is not lost by being skipped: the
+    // one that runs after it carries the same state and more.
+    if (saveProc.running) {
+      root.savePending = true
+      return
+    }
+    var text = Model.serialize(root.items, root.pinned, root.reveal, root.edge,
+                               root.showHandle, root.screenName)
+    saveProc.payload = text
+    saveProc.command = ["timeout", "2", "python3", "-c", root.stateScript,
+                        "write", root.statePath, String(Model.byteLength(text))]
+    saveProc.running = true
   }
 
   function restore(text) {
@@ -300,77 +311,138 @@ Scope {
     root.classify()
   }
 
-  // Write-only, deliberately. `preload` is off and there is no `onLoaded`,
-  // because reading this file through FileView is what the hardening below
-  // exists to avoid.
-  FileView {
-    id: stateFile
-    path: root.statePath
-    preload: false
-    atomicWrites: true
-    printErrors: false
-  }
-
-  // Reading it is the untrusted step. Anything that can write to
-  // ~/.local/state can replace this file, and what comes out of it is parsed
-  // inside the process that everything else on the desktop depends on.
+  // The state file is the untrusted step at both ends. Anything that can write
+  // to ~/.local/state can replace what is read back into the process that
+  // everything else on the desktop depends on, and can redirect what is
+  // written out of it.
   //
-  // Checking a path and then reading a path are two different files. Between
-  // the two, anything that can write to that directory can put something else
-  // there, and every guarantee the check made is gone: `[ -f ]` and `[ ! -L ]`
-  // followed by `head` is three separate resolutions of the same name and
-  // proves nothing about the third. So the path is opened exactly once and
-  // every question after that is asked of the descriptor.
+  // Checking a path and then using a path are two different files: between the
+  // two, the name can be made to mean something else, and every guarantee the
+  // check made is gone. Nor is it enough to guard the last component - a
+  // replaced directory anywhere along the way redirects the whole thing before
+  // the file is ever reached. So the path is walked one component at a time
+  // and everything after that is done relative to the descriptor that walk
+  // ended on, which no rename can reach.
   //
-  //   O_NOFOLLOW   the open itself fails on a symlink, rather than a test
-  //                something else can invalidate afterwards
-  //   O_NONBLOCK   a FIFO with no writer returns instead of blocking, so the
-  //                type check is reached rather than waited out
-  //   S_ISREG      regular files only: no FIFOs, devices or directories
-  //   st_uid       ours, on the descriptor
-  //   st_size      a byte ceiling, checked on the descriptor and enforced
-  //                again by the bounded read, which covers a file that grows
-  //                after the check
-  //   timeout      a deadline over all of it, since an open can still stall
-  //                on an unresponsive mount
+  //   the walk    `openat(dirfd, name, O_DIRECTORY | O_NOFOLLOW)` per
+  //               component, from "/" down. A symlink anywhere in the chain
+  //               fails the open rather than being followed
+  //   each parent owned by root or by us, and not group or world writable
+  //               unless sticky, checked on its own descriptor
+  //   the read    `openat(dirfd, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)`,
+  //               then S_ISREG so no FIFO, device or directory, st_uid so
+  //               nothing another account left there, st_size against the
+  //               ceiling, and a read loop bounded again in case the file
+  //               grew after the check
+  //   the write   a fresh `O_CREAT | O_EXCL | O_NOFOLLOW` temporary in the
+  //               same directory descriptor, fsync, then renameat over the
+  //               real name and an fsync of the directory. Nothing here names
+  //               a path a second time
+  //   timeout     a deadline over all of it, since an open can still stall on
+  //               an unresponsive mount
   //
-  // A rename cannot reach the file behind an open descriptor, so the bytes
-  // that arrive are the bytes that were validated. Every refusal prints
-  // nothing, and deserialize answers an empty read with an empty shelf.
+  // A refused read prints nothing, which deserialize answers with an empty
+  // shelf; a refused write exits non-zero and changes nothing. Item count,
+  // path length and control characters are bounded separately, in
+  // ShelfModel.deserialize.
   //
-  // O_NOFOLLOW covers the last component. A symlinked ~/.local/state is a
-  // different problem, and one this shares with everything else that writes
-  // there. Item count, path length and control characters are bounded
-  // separately, in ShelfModel.deserialize.
+  // What this does not do is make the shelf safe from something already
+  // running as you. Anything that can swap a directory under ~/.local can swap
+  // the plugin's own QML just as easily, and then it is inside the shell
+  // rather than talking to it. This closes a path-resolution gap; it is not a
+  // privilege boundary, and nothing here should be read as one.
   readonly property int stateReadLimit: 262144   // 256 KiB; 500 items is ~40 KB
 
-  readonly property string stateReadScript: [
+  readonly property string stateScript: [
     "import os, stat, sys",
-    "try:",
-    "    fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
-    "except OSError:",
-    "    sys.exit(0)",
-    "try:",
-    "    limit = int(sys.argv[2])",
+    "",
+    "mode, path, count = sys.argv[1], sys.argv[2], int(sys.argv[3])",
+    "",
+    "def step(dirfd, name, create):",
+    "    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC",
+    "    try:",
+    "        fd = os.open(name, flags, dir_fd=dirfd)",
+    "    except FileNotFoundError:",
+    "        if not create:",
+    "            raise",
+    "        os.mkdir(name, 0o700, dir_fd=dirfd)",
+    "        fd = os.open(name, flags, dir_fd=dirfd)",
     "    st = os.fstat(fd)",
-    "    if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_size > limit:",
+    "    writable = st.st_mode & (stat.S_IWGRP | stat.S_IWOTH)",
+    "    if st.st_uid not in (0, os.getuid()) or (writable and not st.st_mode & stat.S_ISVTX):",
+    "        os.close(fd)",
+    "        raise OSError",
+    "    return fd",
+    "",
+    "def parent(create):",
+    "    parts = [p for p in path.split(\"/\") if p]",
+    "    if len(parts) < 2:",
+    "        sys.exit(0 if mode == \"read\" else 1)",
+    "    dirfd = os.open(\"/\", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)",
+    "    try:",
+    "        for name in parts[:-1]:",
+    "            nextfd = step(dirfd, name, create)",
+    "            os.close(dirfd)",
+    "            dirfd = nextfd",
+    "    except OSError:",
+    "        os.close(dirfd)",
+    "        sys.exit(0 if mode == \"read\" else 1)",
+    "    return dirfd, parts[-1]",
+    "",
+    "if mode == \"read\":",
+    "    dirfd, name = parent(False)",
+    "    try:",
+    "        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=dirfd)",
+    "    except OSError:",
     "        sys.exit(0)",
-    "    out = b''",
-    "    while len(out) < limit:",
-    "        chunk = os.read(fd, limit - len(out))",
+    "    try:",
+    "        st = os.fstat(fd)",
+    "        if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_size > count:",
+    "            sys.exit(0)",
+    "        out = b''",
+    "        while len(out) < count:",
+    "            chunk = os.read(fd, count - len(out))",
+    "            if not chunk:",
+    "                break",
+    "            out += chunk",
+    "    finally:",
+    "        os.close(fd)",
+    "    sys.stdout.buffer.write(out)",
+    "else:",
+    "    data = b''",
+    "    while len(data) < count:",
+    "        chunk = sys.stdin.buffer.read(count - len(data))",
     "        if not chunk:",
     "            break",
-    "        out += chunk",
-    "finally:",
-    "    os.close(fd)",
-    "sys.stdout.buffer.write(out)"
+    "        data += chunk",
+    "    if len(data) != count:",
+    "        sys.exit(1)",
+    "    dirfd, name = parent(True)",
+    "    temp = '.' + name + '.' + str(os.getpid())",
+    "    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=dirfd)",
+    "    try:",
+    "        try:",
+    "            written = 0",
+    "            while written < len(data):",
+    "                written += os.write(fd, data[written:])",
+    "            os.fsync(fd)",
+    "        finally:",
+    "            os.close(fd)",
+    "        os.replace(temp, name, src_dir_fd=dirfd, dst_dir_fd=dirfd)",
+    "        os.fsync(dirfd)",
+    "    except OSError:",
+    "        try:",
+    "            os.unlink(temp, dir_fd=dirfd)",
+    "        except OSError:",
+    "            pass",
+    "        sys.exit(1)"
   ].join("\n")
 
   function loadState() {
     if (!root.statePath)
       return
-    loadProc.command = ["timeout", "2", "python3", "-c", root.stateReadScript,
-                        root.statePath, String(root.stateReadLimit)]
+    loadProc.command = ["timeout", "2", "python3", "-c", root.stateScript,
+                        "read", root.statePath, String(root.stateReadLimit)]
     loadProc.running = true
   }
 
@@ -378,9 +450,30 @@ Scope {
     id: loadProc
     stdout: StdioCollector {
       waitForEnd: true
-      // Empty covers every refusal above as well as a missing file, and
-      // deserialize answers all of them with an empty shelf and defaults.
+      // Empty covers every refusal as well as a missing file, and deserialize
+      // answers all of them with an empty shelf and defaults.
       onStreamFinished: root.restore(text)
+    }
+  }
+
+  // The payload goes over stdin rather than argv: /proc/<pid>/cmdline is
+  // readable by every account on the machine, and the shelf is a list of the
+  // files someone is working on.
+  property bool savePending: false
+
+  Process {
+    id: saveProc
+    property string payload: ""
+    stdinEnabled: true
+    onStarted: {
+      write(payload)
+      payload = ""
+    }
+    onExited: {
+      if (root.savePending) {
+        root.savePending = false
+        root.save()
+      }
     }
   }
 
@@ -430,12 +523,9 @@ Scope {
   }
 
   Component.onCompleted: {
-    // FileView writes the file but not the directory above it.
-    if (root.statePath) {
-      var slash = root.statePath.lastIndexOf("/")
-      if (slash > 0)
-        Quickshell.execDetached(["mkdir", "-p", root.statePath.slice(0, slash)])
-    }
+    // No `mkdir -p` here any more: creating the directories by pathname is
+    // the same unanchored walk the write path exists to avoid, so the helper
+    // makes them itself, descriptor by descriptor, on the first save.
     root.loadState()
     root.pickScreen()
   }
