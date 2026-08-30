@@ -131,6 +131,12 @@ omarchy-shelf handle off                  # hide the pill on the edge
 omarchy-shelf clear
 ```
 
+`add` and `show` slide the shelf out and leave it out for three seconds before
+it closes on its own. A pointer reveal ends when the pointer leaves the surface;
+a command line reveal has no pointer behind it, so without the timeout it would
+stay out until something else closed it. Resting on the shelf in the meantime
+keeps it there, and a pinned shelf ignores the timeout entirely.
+
 Underneath it is shell IPC: `omarchy-shell shelf <method>`.
 
 ## Settings

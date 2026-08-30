@@ -60,6 +60,11 @@ Scope {
   readonly property int revealDelay: 220
   readonly property int hideDelay: 420
 
+  // A reveal that came from the IPC has no pointer behind it, so nothing will
+  // ever leave the surface and close it again. It lingers this long instead,
+  // which is enough to read the row that just landed.
+  readonly property int lingerDelay: 3000
+
   // ---------------------------------------------------------------- colors
   readonly property color background: Color.menu.background
   readonly property color foreground: Color.menu.text
@@ -118,6 +123,7 @@ Scope {
   function show() {
     revealTimer.stop()
     hideTimer.stop()
+    lingerTimer.stop()
     root.opened = true
     root.classify()
   }
@@ -127,6 +133,7 @@ Scope {
       return
     revealTimer.stop()
     hideTimer.stop()
+    lingerTimer.stop()
     root.rowHint = ""
     root.opened = false
   }
@@ -535,7 +542,7 @@ Scope {
   IpcHandler {
     target: "shelf"
 
-    function show(): void { root.show() }
+    function show(): void { root.show(); lingerTimer.restart() }
     function hide(): void { root.pinned = false; root.hide() }
     function toggle(): void { root.toggle() }
     function pin(): string { root.setPinned(true); return "pinned" }
@@ -586,6 +593,7 @@ Scope {
     function add(argument: string): string {
       var added = root.addFromArgument(argument)
       root.show()
+      lingerTimer.restart()
       return String(added)
     }
 
@@ -652,6 +660,14 @@ Scope {
   Timer {
     id: hideTimer
     interval: root.hideDelay
+    onTriggered: root.considerHiding()
+  }
+
+  // Only the IPC arms this one - a hover reveal ends when the pointer leaves,
+  // and a pinned, hovered or mid-drag shelf is held open by considerHiding().
+  Timer {
+    id: lingerTimer
+    interval: root.lingerDelay
     onTriggered: root.considerHiding()
   }
 
