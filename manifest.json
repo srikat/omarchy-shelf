@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "sridhar.shelf",
   "name": "Shelf",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "sridhar",
   "license": "MIT",
   "description": "A drop zone that slides out of any screen edge. Throw files and folders at the edge to park them, click to open, drag them back out later. Pin it to keep it open.",
