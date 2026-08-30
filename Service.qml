@@ -60,9 +60,10 @@ Scope {
   readonly property int revealDelay: 220
   readonly property int hideDelay: 420
 
-  // A reveal that came from the IPC has no pointer behind it, so nothing will
-  // ever leave the surface and close it again. It lingers this long instead,
-  // which is enough to read the row that just landed.
+  // `show` from the IPC has no pointer behind it, so nothing will ever leave
+  // the surface and close it again. It lingers this long instead, which is
+  // enough to read what is on the shelf. `add` deliberately does not: it has
+  // just put something there that you may want to drag straight back out.
   readonly property int lingerDelay: 3000
 
   // ---------------------------------------------------------------- colors
@@ -593,7 +594,6 @@ Scope {
     function add(argument: string): string {
       var added = root.addFromArgument(argument)
       root.show()
-      lingerTimer.restart()
       return String(added)
     }
 
@@ -663,8 +663,9 @@ Scope {
     onTriggered: root.considerHiding()
   }
 
-  // Only the IPC arms this one - a hover reveal ends when the pointer leaves,
-  // and a pinned, hovered or mid-drag shelf is held open by considerHiding().
+  // Only `show` from the IPC arms this one - a hover reveal ends when the
+  // pointer leaves, and a pinned, hovered or mid-drag shelf is held open by
+  // considerHiding().
   Timer {
     id: lingerTimer
     interval: root.lingerDelay
